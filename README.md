@@ -1,4 +1,4 @@
-# Dissertação FIBRA-UECE 📕
+# SIGMA-IP 📕
 
 Repositório dos códigos para dissertação do tema de Firewall automatizado.
 
