@@ -1,6 +1,6 @@
 # SIGMA-IP 📕
 
-Repositório dos códigos para dissertação do tema de Firewall automatizado.
+Repositório dos códigos que compõem o SIGMA-IP, Firewall automatizado com integração de IA.
 
 O objetivo dessa ferramenta é aumentar o nível de segurança de um firewall de borda evitando a negação inicial do serviço, enquanto é efetuada a análise do tráfego registrado.
 
