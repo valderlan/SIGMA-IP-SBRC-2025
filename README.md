@@ -24,7 +24,7 @@ apt install git -y
 
 ### Clonando o Repositório
 ```sh
-git clone https://github.com/LarcesUece/FIBRA-Larces.git
+git clone https://github.com/valderlan/SIGMA-IP-SBRC-2025.git
 ```
 
 ### Instalando Pacotes Necessários
@@ -36,7 +36,7 @@ apt install vim wget bash-completion \
 
 ### Criando Ambiente Virtual
 ```sh
-python3 -m venv /opt/FIBRA-Larces/python/
+python3 -m venv .env
 ```
 
 ### Instalando Docker
@@ -56,8 +56,15 @@ Editar o arquivo de configuração:
 ```sh
 nano /usr/share/doc/geoipupdate/GeoIP.conf
 ```
-Exemplo de configuração:
-```ini
+A *MaxMind* precisa que seja feito um cadastro para a disponibilização dessa base. Sendo assim, após o cadastro devidamente feito, serão gerados o ```AccountID``` e a ```LicenseKey```. No caso, você pode usar esse ```AccountID``` e a ```LicenseKey``` disponibilizados no repositório, porém não requisite mais de uma vez para não acabar o limite diários da API. 
+
+Obs: Você pode criar um login novo para você utilizar a base de geolocalização ou pode utilizar os dados já existentes no readme.
+
+![Maxmind](imgs/maxMind.png)
+
+Sendo necessário apenas inserir essas informações no arquivo citado assim, como o exemplo abaixo:
+
+```
 AccountID 1042771
 LicenseKey 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
 EditionIDs GeoLite2-ASN GeoLite2-City GeoLite2-Country
@@ -67,47 +74,77 @@ Após a configuração, execute:
 geoipupdate -f /usr/share/doc/geoipupdate/GeoIP.conf
 ```
 
-## Instalando Bibliotecas no Ambiente Virtual
+## Ativa o ambiente virtual
 ```sh
-source /opt/FIBRA-Larces/python/bin/activate
-pip install geoip2 scapy requests datetime psycopg2-binary
+. .env/bin/activate
 ```
+## Da permissão de leitura escrita e execução para a venv
+```sh
+sudo chmod -R a+rwx .env
+```
+## Instala as bibliotecas necessárias
+```sh
+pip install -r requirements.txt 
+``` 
 
 ## Criando e Executando Containers
 ### Postgres API
 ```sh
-docker run --name sigmaip -e POSTGRES_PASSWORD=admin -e POSTGRES_USER=Q1w2e3r4 -e POSTGRES_DB=firewall -p 5433:5432 -d postgres
+docker run --name sigmaip -e POSTGRES_PASSWORD=Q1w2e3r4 -e POSTGRES_USER=admin -e POSTGRES_DB=firewall -p 5433:5432 -d postgres:17
 ```
 
 ### Postgres Local
 ```sh
-docker exec sigmaip psql -U admin -d postgres -c "CREATE DATABASE fibra_local;"
+docker exec sigmaip psql -U admin -d postgres -c "CREATE DATABASE sigma_local OWNER admin;"
 ```
 
 ### Recriando o Banco
 ```sh
 docker exec sigmaip psql -U admin -d postgres -c "DROP DATABASE firewall;" -c "CREATE DATABASE firewall;"
-docker exec sigmaip psql -U admin -d postgres -c "DROP DATABASE fibra_local;" -c "CREATE DATABASE fibra_local;"
+docker exec sigmaip psql -U admin -d postgres -c "DROP DATABASE sigma_local;" -c "CREATE DATABASE sigma_local;"
 ```
 
-## Criando a Estrutura da Base de Dados
-(Adicionar comandos específicos)
+## Configurando o Postgres local
+
+Abrir uma nova conexão e seleciona o PostgreSQL
+
+![Postgres] (imgs/postgres1.png)
+
+
+![Postgres] (imgs/postgres2.png)
+
+Inserir as informações do banco e usuário na conexão
+
+![Postgres] (imgs/postgres3.png)
+
+Importar Script SQL e selecionar o arquivo pgsql.sql, presente na pasta "sql"
+
+![Postgres] (imgs/postgres4.png)
+
+![Postgres] (imgs/postgres5.png)
+
+Rodar as instruções SQL
+
+![Postgres] (imgs/postgres6.png)
+
 
 ## Rodando a API
-(Adicionar comandos específicos)
 
-## Executando o Sniffer de Rede
+É necessário criar um super usuário via Django, criar as migrations e aplicá-las. Após isso basta rodar o servidor.
+
 ```sh
-/opt/FIBRA-Larces/python/bin/python3 /opt/FIBRA-Larces/collect/collect-pgsql-ipv4-tcp-syn.py > /dev/null &
+python3 manage.py createsuperuser
+python3 manage.py makemigrations
+python3 manage.py migrate
+python3 manage.py runserver
 ```
 
 ## Ativando Regras de Firewall
 ```sh
-python3 /FIBRA-Larces/firewall/rules.py
-python3 /FIBRA-Larces/firewall/tarpitrule5.py
+python3 /SIGMA-IP-SBRC-2025/firewall/rules.py
+python3 /SIGMA-IP-SBRC-2025/firewall/tarpitrule5.py
 ```
-
----
-
-Este documento pode ser atualizado conforme necessário para refletir mudanças no sistema.
-
+## Executando o Sniffer de Rede
+```sh
+sudo /home/{usuario}/projects/SIGMA-IP-SBRC-2025/.env/bin/python3 collect/collect-pgsql-ipv4-tcp-syn.py
+```
