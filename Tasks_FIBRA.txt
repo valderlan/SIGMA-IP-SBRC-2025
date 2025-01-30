@@ -1,0 +1,108 @@
+# Todas essas tasks também estão organizadas no Trello do projeto
+
+(C): Concluído
+(P): Posteriomente
+(A): Atrasado
+(O): Ocorrendo
+
+Objetivos das tarefas (Início: 06/11/2024)
+
+* FIBRA-Larces
+
+   * Adicionar um backup mais recente na pasta /FIBRA-Larces/results para facilitar na implementação do projeto em diferentes máquinas antes de incluir no servidor (O).
+   * Adicionar os comandos para rodar o container do backup do banco. Organizar o seguinte texto (C):
+      1°
+      # Criar e rodar o container 
+      sudo docker run --name develop-postgres-1 -p 5433:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:17
+      
+      2°
+      # Rodar o container 
+      sudo docker start develop-postgres-1
+      
+      3°
+      #Acessa o bash do container
+      sudo docker exec -it develop-postgres-1 /bin/bash
+      
+      #Atualiza e instala pgloader
+      apt-get update
+      apt-get update -y pgloader
+      
+      4°
+      # Acessar usuario criado no postgres
+      psql -U postgres
+      
+      #Cria banco e usuário dentro do psql
+      CREATE USER admin WITH PASSWORD 'Q1w2e3r4';
+      CREATE DATABASE firewall OWNER admin;
+      
+      #Acessa o usuário criado 
+      #psql -U <usuario> -d <nome do banco>
+      psql -U admin -d firewall
+      
+      #Sai do psql
+      \q
+      
+      5°
+      #Copia arquivo do backup p/ container
+      sudo docker cp <path do .backup> <id do container>:./
+      
+      #Restaura o banco 
+      #pg_restore -U usuario -Ft -d <nome do banco> < <backup>
+      
+      pg_restore -U admin -Ft -d firewall < db_18092024.backup
+      
+      #Dump do banco
+      pg_dump -U admin -W -F t firewall > db_21062024.backup
+
+* collect-pgsql-ipv4-tcp-syn.py 
+
+   * Retirar o seguinte trecho do código que registra o log de dados de tempo de inserção na tabela network_traffic (C):
+      
+      # Registro de log
+        with open("/opt/FIBRA-Larces/collect/connection_times.txt", "a") as log_file:
+            log_file.write(f"src_ip: {dados['src_ip']}, dst_ip: {dados['dst_ip']}, tempo: {dados['connection_time']} ms, timestamp: {dados['timestamp']}\n")
+
+   * Iniciar a adaptação desse código para os services no Django (O).
+
+* update-bl.py
+
+   * Iniciar a adaptação desse código para os services no Django (O).
+   * Temporize as requisições de blacklist diárias para três vezes ao longo do dia para atualizar a tabela bl_local_cache com novos ips. Testar o uso da biblioteca que utiliza o crontab pelo Django utilizando os services para agendamentos de tarefas (O).
+
+----------------------------------------------------------------
+
+Objetivos das tarefas (Início: 29/10/2024 - Término: 05/11/2024)
+
+* update-bl.py
+
+   * Substituir as inserções diretas ao banco de dados para as rotas via API do FIBRA para inserir no banco. No caso do código do update.py, substituir a inserção direta da blacklist do AbuseIPDB na tabela bl_local_cache para a inserção ser feita através API do FIBRA (GET/POST) pela url 'bl-local-cache/list/' (C).
+   * Adicionar uma lógica no código que utiliza uma lista de tokens das contas do AbuseIPDB para trocar de token a medida que as requisições diárias acabam (Limite de 5 requisições diárias de blacklist) (C). 
+   * Criar uma lista de tokens com até 10 chaves no mínimo (C).
+   * Temporize as requisições de blacklist diárias para três vezes ao longo do dia para atualizar a tabela bl_local_cache com novos ips (P).
+
+* collect-pgsql-ipv4-tcp-syn.py
+
+   * Incluir uma lógica na tabela network_traffic para que as conexões que já foram filtradas para as tabelas bl_address_local e tp_address_local sejam excluídas da tabela network_traffic para que não fique acumulando dados de conexões que já passaram por tratamento (C).
+   * Incluir uma função para inserir os dados das colunas na tabela wl_address_local pela rota da API do FIBRA (C).
+   * Mudar o model da tabela wl_address_local para ter os campos (C):
+
+      ip_address = models.CharField(max_length=45, unique=True)
+      country_code = models.CharField(max_length=3, null=True)
+      abuse_confidence_score = models.IntegerField(null=True)
+      last_reported_at = models.DateTimeField(null=True, blank=True)
+      src_longitude = models.FloatField(null=True)
+      src_latitude = models.FloatField(null=True)
+      timestamp_added = models.DateTimeField(auto_now_add=True, null=True)
+
+   * Adicionar uma lógica na tabela tp_address_local que após ser inserido uma nova conexão e ser feita a requisição à API do AbuseIPDB para checar as features da reputação 'abuseConfidenceScore' e o última reportagem 'lastReportedAt'. De acordo com o resultado do 'abuseConfidenceScore', sendo um resultado na faixa de valores de 90-100, essa conexão vai para a tabela bl_address_local, sendo um resultado na faixa de valores de 0-5, essa conexão vai para a tabela wl_address_local e sendo um resultado NULL ou na faixa de valores de 6-89 vai continuar na tabela tp_address_local (C).
+   * Lembrar de colocar uma exceção para o IP do servidor que está executando o collect-pgsql-ipv4-tcp-syn.py para ser incluído automaticamente na tabela wl_address_local e evitar que uma conexão que tenha o IP do servidor (Está na whitelist) fique registrada na tabela network_traffic e não seja excluída posteriormente (C).
+   * Ajustar o caminho do arquivo txt dos registros de log das conexões que vão para a tabela network_traffic. Substituir esse caminho (C):
+
+     with open("connection_times.txt", "a") as log_file:
+            log_file.write(f"src_ip: {dados['src_ip']}, dst_ip: {dados['dst_ip']}, tempo: {dados['connection_time']} ms, timestamp: {dados['timestamp']}\n")
+
+
+     Para esse caminho:
+
+     with open("FIBRA-Larces/collect/connection_times.txt", "a") as log_file:
+            log_file.write(f"src_ip: {dados['src_ip']}, dst_ip: {dados['dst_ip']}, tempo: {dados['connection_time']} ms, timestamp: {dados['timestamp']}\n")

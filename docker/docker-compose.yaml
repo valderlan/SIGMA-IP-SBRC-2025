@@ -1,0 +1,41 @@
+version: '3.1'
+
+services:
+  postgres:
+    image: postgres:latest
+    restart: "always"
+    ports:
+      - "5432:5432"
+    volumes:
+      - /opt/FIBRA-Larces/docker/postgres/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: Q1w2e3r4
+      POSTGRES_DB: firewall
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: "always"
+    ports:
+      - "80:80"
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: Q1w2e3r4!@#
+      MAX_LOGIN_ATTEMPTS: 30
+
+  grafana:
+    image: grafana/grafana-oss:10.0.12
+    restart: "always"
+    environment:
+      GF_INSTALL_PLUGINS: "grafana-clock-panel, grafana-simple-json-datasource"
+      GF_PANELS_ENABLE_ALPHA: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/FIBRA-Larces/docker/grafana:/var/lib/grafana
+
+networks:
+  default:
+    driver: bridge

@@ -1,0 +1,54 @@
+#################################################################################################################################
+#																
+# Script Name: Vagrantfile													
+# 
+# Description: A code to provision 2 VMs for local labs 				
+# Author: Marcus Costa														
+# Email Address: marcus.asc@gmail.com												
+# Execution Sample: Just "vagrant up" :)									
+# 
+#################################################################################################################################
+
+# Some variables
+
+$route_ip = "ADDRESS"        # Configure to your environment gateway ip address
+$brdg_int = "INTERFACE"       # Configure to your environment NIC adapter
+
+Vagrant.configure("2") do |config|
+    # Setting up the quantity of VM's will be configured, in this case, just 1.
+    config.vm.define "srvfibra" do |srvfibra|
+        srvfibra.vm.box = "debian/bookworm64"
+        srvfibra.vm.hostname = "srvfibra"
+        srvfibra.vm.network "public_network", 
+            bridge: "#{$brdg_int}" 
+        srvfibra.vm.provider "virtualbox" do |v| 
+            v.memory    = 2048
+            v.cpus      = 2
+            v.name      = "srvfibra"
+        end
+        srvfibra.vm.provision "shell",
+            run: "always",
+            inline: "ip route del default"    
+        srvfibra.vm.provision "shell",
+            run: "always",
+            inline: "ip route add default via #{$route_ip}"
+        srvfibra.vm.provision "shell", inline: <<-SHELL
+            sudo apt update -y && \
+            sudo apt install vim wget bash-completion tcpdump net-tools mlocate curl telnet nmap zip git unzip python3-pip python3-venv -y && \
+            sudo curl -fsSL https://get.docker.com | bash && \
+            sudo git clone https://github.com/mascosta/FIBRA-UECE.git /opt/FIBRA-UECE && \
+            sudo mkdir -p /opt/FIBRA-UECE/docker/postgres/data && \
+            sudo mkdir -p /opt/FIBRA-UECE/docker/grafana && \
+            sudo mkdir -p /opt/FIBRA-UECE/python && \
+            sudo chmod 777 -R /opt/FIBRA-UECE/ && \
+            sudo python3 -m venv /opt/FIBRA-UECE/python/ && \
+            sudo wget https://github.com/maxmind/geoipupdate/releases/download/v6.1.0/geoipupdate_6.1.0_linux_amd64.deb && \
+            sudo dpkg -i /home/vagrant/geoipupdate_6.1.0_linux_amd64.deb && \
+            sudo apt clean 
+        SHELL
+        srvfibra.vm.provision "shell", 
+            run: "always", 
+            inline: "sudo chmod 777 -R /opt/FIBRA-UECE/ "
+    end
+end
+

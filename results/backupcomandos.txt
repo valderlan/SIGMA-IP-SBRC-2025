@@ -1,0 +1,39 @@
+1°
+# Criar e rodar o container 
+sudo docker run --name develop-postgres-1 -p 5433:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:17
+
+2°
+# Rodar o container 
+sudo docker start develop-postgres-1
+
+3°
+#Acessa o bash do container
+sudo docker exec -it develop-postgres-1 /bin/bash
+
+#Atualiza e instala pgloader
+apt-get update
+apt-get update -y pgloader
+
+4°
+# Acessar usuario criado no postgres
+psql -U postgres
+
+#Cria banco e usuário dentro do psql
+CREATE USER admin WITH PASSWORD 'Q1w2e3r4';
+CREATE DATABASE firewall OWNER admin;
+
+#Acessa o usuário criado 
+psql -U admin -d firewall
+
+#Sai do psql
+\q
+
+5°
+#Copia arquivo do backup p/ container
+sudo docker cp <path do .backup> <id do container>:./
+
+#Restaura o banco 
+pg_restore -U admin -Ft -d firewall < db_18092024.backup
+
+#Dump do banco
+pg_dump -U admin -W -F t firewall > db_21062024.backup
