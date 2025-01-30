@@ -108,24 +108,24 @@ docker exec sigmaip psql -U admin -d postgres -c "DROP DATABASE sigma_local;" -c
 
 Abrir uma nova conexão e seleciona o PostgreSQL
 
-![Postgres] (imgs/postgres1.png)
+![Postgres](imgs/postgres1.png)
 
 
-![Postgres] (imgs/postgres2.png)
+![Postgres](imgs/postgres2.png)
 
 Inserir as informações do banco e usuário na conexão
 
-![Postgres] (imgs/postgres3.png)
+![Postgres](imgs/postgres3.png)
 
 Importar Script SQL e selecionar o arquivo pgsql.sql, presente na pasta "sql"
 
-![Postgres] (imgs/postgres4.png)
+![Postgres](imgs/postgres4.png)
 
-![Postgres] (imgs/postgres5.png)
+![Postgres](imgs/postgres5.png)
 
 Rodar as instruções SQL
 
-![Postgres] (imgs/postgres6.png)
+![Postgres](imgs/postgres6.png)
 
 
 ## Rodando a API
