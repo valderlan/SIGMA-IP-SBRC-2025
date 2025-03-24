@@ -1,0 +1,29 @@
+geoipupdate_6.1.0_linux_amd64.deb
+./*/.vagrant
+.env
+
+# Ignorar arquivos __pycache__ e arquivos .pyc
+/__pycache__/
+**/*.pyc
+*.pyc
+__pycache__/
+
+# Ignorar dependências do Python instaladas no ambiente virtual
+/python/
+*.egg-info/
+*.dist-info/
+__pycache__/
+*.egg
+
+# Ignorar outros arquivos temporários
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Ignorar o diretório de dados do PostgreSQL
+docker/grafana/
+docker/postgres/
+
+# Ignorar o CSV gerado (cada um tem o seu)
+*.csv
