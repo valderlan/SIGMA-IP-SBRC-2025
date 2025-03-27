@@ -5,10 +5,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAdminUser
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
-from netcontrol.models import Blacklist, Whitelist, Tarpit
+from netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
 from netcontrol.pagination import GenericPagination
-from netcontrol.serializers import (BlacklistSerializer, WhitelistSerializer, TarpitSerializer)
-from netcontrol.filters import (BlacklistFilter, WhitelistFilter, TarpitFilter)
+from netcontrol.serializers import (BlacklistSerializer, WhitelistSerializer, TarpitSerializer, SuspectSerializer)
+from netcontrol.filters import (BlacklistFilter, WhitelistFilter, TarpitFilter, SuspectFilter)
 from netcontrol.services import ReputacaoService
 import time
 
@@ -76,3 +76,16 @@ class TarpitViewSet(viewsets.ModelViewSet):
 
         # retorna a reputação (black ou white) e o status
         return Response(response, status=201)
+    
+
+class SuspectViewSet(viewsets.ModelViewSet):
+    queryset = Suspect.objects.all().order_by('id')
+    serializer_class = SuspectSerializer
+    permission_classes = [IsAdminUser]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['ip_address', 'timestamp_added']
+    filterset_class = SuspectFilter
+    pagination_class = GenericPagination
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+    lookup_field = "ip_address"
+

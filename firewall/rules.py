@@ -3,7 +3,7 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.getcwd(), "..", "api", ".env"))
+load_dotenv(os.path.join(os.getcwd(), "api", ".env"))
 
 # Configurações do PostgreSQL
 db_host = os.environ.get('PG_HOST')

@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import BlacklistViewSet, WhitelistViewSet, TarpitViewSet
+from .views import BlacklistViewSet, WhitelistViewSet, TarpitViewSet, SuspectViewSet
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
@@ -15,6 +15,10 @@ urlpatterns = [
     # urls para tarpit
     path('tarpit/list/', TarpitViewSet.as_view({'get': 'list', 'post': 'create'})),
     path('tarpit/<str:ip_address>/', TarpitViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
+
+    # urls para suspect
+    path('suspect/list/', SuspectViewSet.as_view({'get': 'list', 'post': 'create'})),
+    path('tarpit/<str:ip_address>/', SuspectViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
 
     # SWAGGER
     path('schema/', SpectacularAPIView.as_view(), name='schema'),

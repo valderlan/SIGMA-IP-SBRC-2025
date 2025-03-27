@@ -1,6 +1,8 @@
 geoipupdate_6.1.0_linux_amd64.deb
 ./*/.vagrant
 .env
+.env/
+*.csv
 
 # Ignorar arquivos __pycache__ e arquivos .pyc
 /__pycache__/
