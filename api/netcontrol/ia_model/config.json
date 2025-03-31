@@ -1,0 +1,20 @@
+{
+    "input_file": "datasets/Total2.csv",
+    "output_file": "datasets/dataset_cal_w.csv",
+    "dataset_path": "datasets/Total2.csv",
+    "output_path": "datasets/novo_dataset_com_pesos.csv",
+    "feature_ranges": {
+      "abuseipdb_confidence_score": [0, 100],
+      "abuseipdb_total_reports": [0, 85000],
+      "abuseipdb_num_distinct_users": [0, 2000],
+      "ipvoid_Detection_Count": [0, 40],
+      "risk_recommended_pulsedrive": [0, 5],
+      "virustotal_reputation": [-127, 565],
+      "virustotal_harmless": [0, 86],
+      "virustotal_malicious": [0, 20],
+      "virustotal_undetected": [0, 91],
+      "virustotal_suspicious": [0, 5]
+    },
+    "features_inversas": ["virustotal_reputation", "virustotal_harmless"]
+  }
+  

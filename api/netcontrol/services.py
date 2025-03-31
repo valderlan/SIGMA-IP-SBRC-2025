@@ -7,10 +7,15 @@ from .externals import SearchAbuse, SearchVirusTotal, SearchIpVoid, SearchPulsed
 from concurrent.futures import ThreadPoolExecutor
 import json
 import time
+import csv
+from netcontrol.ia_model.query import main
 
 load_dotenv()
 
 API_KEY = json.loads(os.getenv("API_KEY", "[]"))
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(BASE_DIR, 'ia_model', 'datasets', 'Total_test1.csv')
 
 class UpdateBlService:
     def ip_ja_existe(ip_address):
@@ -55,6 +60,7 @@ class ReputacaoService:
         try:
             # Começa temporizador
             start_time = time.time()
+            print(CSV_FILE)
 
             # Pega o objeto da tarpit pelo IP
             obj_tarpit = Tarpit.objects.get(ip_address=ip_address)
@@ -167,6 +173,7 @@ class ReputacaoService:
                     dados_ipvoid = responses["ipvoid"].get('data', {}).get('report', {}).get('blacklists', {})
                     obj_tarpit.ipvoid_detection_count = dados_ipvoid.get('detections', 0)
                 else:
+                    obj_tarpit.ipvoid_detection_count = dados_ipvoid.get('detections', 0)
                     print("Nenhuma chave funcional para consultar o IPVoid.")
 
                 if responses.get("pulsedive"):
@@ -177,108 +184,79 @@ class ReputacaoService:
 
                 return obj_tarpit
 
-            # # Separando as respostas
-            # dados_abuse = response_abuse.json()['data']
-            # dados_virus_total = response_virus['data']['attributes']
-            # dados_virus_total_meta = response_virus['data']['attributes']['last_analysis_stats']
-            # dados_ipvoid = response_ipvoid['data']['report']['blacklists']
-            # dados_pulsedive = response_pulsedive
-
-            # # Dados do abuse para colocar no banco
-            # obj_tarpit.abuse_confidence_score = dados_abuse.get('abuseConfidenceScore')
-            # obj_tarpit.last_reported_at = dados_abuse.get('lastReportedAt')
-            # obj_tarpit.total_reports = dados_abuse.get('totalReports')
-            # obj_tarpit.num_distinct_users = dados_abuse.get('numDistinctUsers')
-
-            # # Dados do virustotal para colocar no banco
-            # obj_tarpit.virustotal_reputation = dados_virus_total.get('reputation')
-            # obj_tarpit.harmless_virustotal = dados_virus_total_meta.get('harmless')
-            # obj_tarpit.malicious_virustotal = dados_virus_total_meta.get('malicious')
-            # obj_tarpit.suspicious_virustotal = dados_virus_total_meta.get('suspicious')
-            # obj_tarpit.undetected_virustotal = dados_virus_total_meta.get('undetected')
-
-            # # Dados do IPVoid para colocar no banco
-            # obj_tarpit.ipvoid_detection_count = dados_ipvoid.get('detections')
-
-            # if response_ipvoid is not None:
-            #     dados_ipvoid = response_ipvoid['data']['report']['blacklists']
-            #     obj_tarpit.ipvoid_detection_count = dados_ipvoid.get('detections', 0)
-            # else:
-            #     print("Nenhuma chave funcional para consultar o IPVoid.")
-                
-            # # Dados do Pulsedive para colocar no banco
-            # if response_pulsedive is not None:
-            #     dados_pulsedive = response_pulsedive
-            #     obj_tarpit.risk_recommended_pulsedive = dados_pulsedive.get('risk_recommended', 'unknown')
-            # else:
-            #     # Caso nenhuma resposta válida tenha sido retornada
-            #     obj_tarpit.risk_recommended_pulsedive = 'unknown'
 
             # Checando se as buscas paralelas foram executadas com sucesso
             if realizar_buscas_paralelas(obj_tarpit):
                 print(f"Iniciando filtragem do IP {obj_tarpit.ip_address}")
 
                 data = {
-                    'ip_address': obj_tarpit.ip_address,
-                    'country_code': obj_tarpit.country_code,
-                    'city': obj_tarpit.city,
-                    'abuse_confidence_score': obj_tarpit.abuse_confidence_score,
-                    'total_reports': obj_tarpit.total_reports,
-                    'num_distinct_users': obj_tarpit.num_distinct_users,
+                    'ip': obj_tarpit.ip_address,
+                    # 'country_code': obj_tarpit.country_code,
+                    # 'city': obj_tarpit.city,
+                    'abuseipdb_confidence_score': obj_tarpit.abuse_confidence_score,
+                    'abuseipdb_total_reports': obj_tarpit.total_reports,
+                    'abuseipdb_num_distinct_users': obj_tarpit.num_distinct_users,
+                    "ipvoid_Detection_Count": obj_tarpit.ipvoid_detection_count,
+                    "risk_recommended_pulsedrive": obj_tarpit.risk_recommended_pulsedive,
+                    "virustotal_malicious": obj_tarpit.malicious_virustotal,
                     "virustotal_reputation": obj_tarpit.virustotal_reputation,
-                    "harmless_virustotal": obj_tarpit.harmless_virustotal,
-                    "malicious_virustotal": obj_tarpit.malicious_virustotal,
-                    "suspicious_virustotal": obj_tarpit.suspicious_virustotal,
-                    "undetected_virustotal": obj_tarpit.undetected_virustotal,
-                    "ipvoid_detection_count": obj_tarpit.ipvoid_detection_count,
-                    "risk_recommended_pulsedive": obj_tarpit.risk_recommended_pulsedive,
-                    'last_reported_at': obj_tarpit.last_reported_at,
-                    'src_longitude': obj_tarpit.src_longitude,
-                    'src_latitude': obj_tarpit.src_latitude,
+                    "virustotal_suspicious": obj_tarpit.suspicious_virustotal,
+                    "virustotal_undetected": obj_tarpit.undetected_virustotal,
+                    "virustotal_harmless": obj_tarpit.harmless_virustotal,
+                    # 'last_reported_at': obj_tarpit.last_reported_at,
+                    # 'src_longitude': obj_tarpit.src_longitude,
+                    # 'src_latitude': obj_tarpit.src_latitude,
                 }
 
-                # Move para a blacklist caso o score seja maior ou igual a 50
-                if obj_tarpit.abuse_confidence_score >= 50:
-                    print(f"O IP {obj_tarpit.ip_address} possui score {obj_tarpit.abuse_confidence_score} e será movido para a blacklist")
-                    Blacklist.objects.create(**data)
-                    obj_tarpit.delete()
+                ReputacaoService.write_to_csv(data, CSV_FILE)
 
-                    # adição do status
-                    data["status"] = "blacklist"
+                main()
 
-                    # Calcula o tempo para inserir na blacklist da API.
-                    execution_time = (time.time() - start_request) * 1000
-                    print(f"Tempo para inserção na blacklist da API: {execution_time:.3f} milisegundos")
-                    return data
+
+                # Integrar com IA
+
+                # # Move para a blacklist caso o score seja maior ou igual a 50
+                # if obj_tarpit.abuse_confidence_score >= 50:
+                #     print(f"O IP {obj_tarpit.ip_address} possui score {obj_tarpit.abuse_confidence_score} e será movido para a blacklist")
+                #     Blacklist.objects.create(**data)
+                #     obj_tarpit.delete()
+
+                #     # adição do status
+                #     data["status"] = "blacklist"
+
+                #     # Calcula o tempo para inserir na blacklist da API.
+                #     execution_time = (time.time() - start_request) * 1000
+                #     print(f"Tempo para inserção na blacklist da API: {execution_time:.3f} milisegundos")
+                #     return data
                 
-                # Move para a whitelist caso o score seja inferior a 50
-                elif obj_tarpit.abuse_confidence_score < 50:
-                    # Caso não esteja, será colocado na whitelist da API e na whitelist do banco local
-                    print(f"O IP {obj_tarpit.ip_address} possui score {obj_tarpit.abuse_confidence_score} e será movido para a whitelist")
-                    Whitelist.objects.create(**data)
-                    obj_tarpit.delete()
+                # # Move para a whitelist caso o score seja inferior a 50
+                # elif obj_tarpit.abuse_confidence_score < 50:
+                #     # Caso não esteja, será colocado na whitelist da API e na whitelist do banco local
+                #     print(f"O IP {obj_tarpit.ip_address} possui score {obj_tarpit.abuse_confidence_score} e será movido para a whitelist")
+                #     Whitelist.objects.create(**data)
+                #     obj_tarpit.delete()
 
-                    # adição do status
-                    data["status"] = "whitelist"
+                #     # adição do status
+                #     data["status"] = "whitelist"
 
-                    # Calcula o tempo para inserir na blacklist da API.
-                    execution_time = (time.time() - start_request) * 1000
-                    print(f"Tempo para inserção na whitelist da API: {execution_time:.3f} milisegundos")
-                    return data
+                #     # Calcula o tempo para inserir na blacklist da API.
+                #     execution_time = (time.time() - start_request) * 1000
+                #     print(f"Tempo para inserção na whitelist da API: {execution_time:.3f} milisegundos")
+                #     return data
 
-                # Inserir na blacklist caso o score seja nulo
-                elif obj_tarpit.abuse_confidence_score is None:
-                    print(f"O IP {obj_tarpit.ip_address} possui score null, e será movido para a blacklist")
-                    Blacklist.objects.create(**data)
-                    obj_tarpit.delete()
+                # # Inserir na blacklist caso o score seja nulo
+                # elif obj_tarpit.abuse_confidence_score is None:
+                #     print(f"O IP {obj_tarpit.ip_address} possui score null, e será movido para a blacklist")
+                #     Blacklist.objects.create(**data)
+                #     obj_tarpit.delete()
 
-                    # adição do status
-                    data["status"] = "blacklist"
+                #     # adição do status
+                #     data["status"] = "blacklist"
 
-                    # Calcula o tempo para inserir na blacklist da API.
-                    execution_time = (time.time() - start_request) * 1000
-                    print(f"Tempo para inserção na blacklist da API no caso score None: {execution_time:.3f} milisegundos")
-                    return data
+                #     # Calcula o tempo para inserir na blacklist da API.
+                #     execution_time = (time.time() - start_request) * 1000
+                #     print(f"Tempo para inserção na blacklist da API no caso score None: {execution_time:.3f} milisegundos")
+                #     return data
             
             else:
                 print(f"Não foi possível checar a reputação do IP {obj_tarpit.ip_address} com as APIs externas")
@@ -302,4 +280,9 @@ class ReputacaoService:
             print("Nenhum registro encontrado na tabela Tarpit")
             return {"status": "none"}
 
+    def write_to_csv(data, csv_file):
+        with open(csv_file, 'w') as file:
+            writer = csv.writer(file)
+            writer.writerow(data.keys())
+            writer.writerow(data.values())
     
