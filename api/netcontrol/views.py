@@ -45,7 +45,7 @@ class TarpitViewSet(viewsets.ModelViewSet):
     lookup_field = 'ip_address'
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['ip_address', 'country_code', 'abuse_confidence_score']
+    search_fields = ['ip_address', 'country_code', 'abuseipdb_confidence_score']
     filterset_class = TarpitFilter
     pagination_class = GenericPagination
     http_method_names = ['get', 'post', 'put', 'patch', 'delete']

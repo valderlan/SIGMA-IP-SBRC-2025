@@ -62,35 +62,57 @@ def create_cnn_model(input_shape):
 
     return model, hyperparameters
 
-'''def create_cnn_model(input_shape):
+def get_models(input_shape=None):
     """
-    Cria um modelo CNN.
+    Creates and returns model instances for different algorithms.
+    
+    Args:
+        input_shape: Optional tuple (features, 1) for CNN model 
+                    (defaults to (11, 1) if not provided)
+    
+    Returns:
+        dict: Dictionary of model instances
     """
-    model = Sequential(
-        [
-            Input(shape=input_shape),
-            Conv1D(32, kernel_size=3, padding="same", activation="relu"),
-            BatchNormalization(),
-            Conv1D(64, kernel_size=3, padding="same", activation="relu"),
-            BatchNormalization(),
-            Flatten(),
-            Dense(32, activation="relu"),
-            Dropout(0.2),
-            Dense(16, activation="relu"),
-            Dense(3, activation="softmax"),
-        ]
-    )
+    if input_shape is None:
+        input_shape = (11, 1)  # Default, but should be overridden with actual data shape
+        
+    cnn_model, cnn_params = create_cnn_model(input_shape)
 
-    model.compile(
-        optimizer=Adam(learning_rate=0.001),
-        loss="sparse_categorical_crossentropy",
-        metrics=["accuracy"],
-    )
+    return {
+        "Random Forest": RandomForestClassifier(
+            class_weight="balanced", random_state=42
+        ),
+        "SVM": SVC(class_weight="balanced", probability=True, random_state=42),
+        "Neural Network": MLPClassifier(
+            max_iter=1000,
+            random_state=42,
+            learning_rate_init=0.001,
+            early_stopping=True,
+            validation_fraction=0.1,
+            n_iter_no_change=10,
+            hidden_layer_sizes=(100, 50),
+            activation="relu",
+            solver="adam",
+            batch_size="auto",
+            shuffle=True,
+            verbose=False,
+        ),
+        "Extra Trees": ExtraTreesClassifier(class_weight="balanced", random_state=42),
+        "Decision Tree": DecisionTreeClassifier(
+            class_weight="balanced", random_state=42
+        ),
+        "KNN": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("pca", PCA()),
+                ("knn", KNeighborsClassifier()),
+            ]
+        ),
+        "CNN": (cnn_model, cnn_params)
+    }
 
-    return model'''
 
-
-def get_models():
+'''def get_models():
     cnn_model, cnn_params = create_cnn_model((11, 1))
 
     return {
@@ -124,4 +146,4 @@ def get_models():
             ]
         ),
         "CNN": (cnn_model, cnn_params)
-    }
+    }'''

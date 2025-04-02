@@ -9,8 +9,13 @@ import seaborn as sns
 
 from util.map_risk_level import map_risk_level
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')
+WEIGHTS_DIR = os.path.join(BASE_DIR, 'weights')
+MODEL_PREDICTION_LOG_PATH = os.path.join(BASE_DIR, 'outputs', 'model_prediction.log')
 
-def setup_logging(log_file="outputs/weight_calculation.log"):
+
+def setup_logging(log_file=MODEL_PREDICTION_LOG_PATH):
     """Configures the logging system.
 
     Args:
@@ -31,7 +36,7 @@ def setup_logging(log_file="outputs/weight_calculation.log"):
 
 
 def calculate_final_weights(
-    config_path="config.json", output_dir="weights", output_file="final_weights.json"
+    config_path=CONFIG_PATH, output_dir=WEIGHTS_DIR, output_file="final_weights.json"
 ):
     """Calculates the final feature weights and saves them.
 
@@ -69,9 +74,9 @@ def calculate_final_weights(
 
     df = pd.read_csv(file_path)
 
-    logger.info("3. Categorizing risk_recommended_pulsedrive...")
-    if "risk_recommended_pulsedrive" in df.columns:
-        df["risk_recommended_pulsedrive"] = df["risk_recommended_pulsedrive"].apply(
+    logger.info("3. Categorizing risk_recommended_pulsedive...")
+    if "risk_recommended_pulsedive" in df.columns:
+        df["risk_recommended_pulsedive"] = df["risk_recommended_pulsedive"].apply(
             map_risk_level
         )
 

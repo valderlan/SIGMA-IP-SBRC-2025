@@ -5,8 +5,13 @@ import time
 from feature_weight_calculator import calculate_final_weights
 from ip_classification import classify_ips_and_generate_plots
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUTS_DIR = os.path.join(BASE_DIR, 'outputs')
+CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')
+MODEL_PREDICTION_LOG_PATH = os.path.join(BASE_DIR, 'outputs', 'model_prediction.log')
 
-def setup_logging(log_file="outputs/full_pipeline.log"):
+
+def setup_logging(log_file=MODEL_PREDICTION_LOG_PATH):
     """Configures the logging system.
 
     Args:
@@ -26,7 +31,7 @@ def setup_logging(log_file="outputs/full_pipeline.log"):
     return logging.getLogger(__name__)
 
 
-def execute_full_pipeline(config_path="config.json", output_dir="outputs"):
+def execute_full_pipeline(config_path=CONFIG_PATH, output_dir=OUTPUTS_DIR):
     """Executes the full analysis pipeline:
     1. Calculates final weights.
     2. Classifies IPs and generates plots.

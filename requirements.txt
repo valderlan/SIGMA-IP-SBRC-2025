@@ -35,3 +35,11 @@ zope.interface==7.0.3
 geocoder==1.38.1
 python-dotenv==1.0.0
 django-crontab==0.7.1
+scikit-learn==1.6.1
+pandas==2.2.3
+tensorflow==2.19.0
+matplotlib==3.10.1
+seaborn==0.13.2
+imblearn==0.0
+scikeras==0.13.0
+tabulate==0.9.0

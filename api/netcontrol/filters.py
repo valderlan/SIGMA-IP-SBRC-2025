@@ -10,7 +10,7 @@ class BlacklistFilter(django_filters.FilterSet):
             'ip_address': ['exact', 'icontains'],
             'country_code': ['exact'],
             'city': ['exact', 'icontains'],
-            'abuse_confidence_score': ['exact', 'gte', 'lte'],
+            'abuseipdb_confidence_score': ['exact', 'gte', 'lte'],
             'last_reported_at': ['exact', 'date__gte', 'date__lte'],
             'timestamp_added': ['exact', 'date__gte', 'date__lte'],
         }
@@ -31,7 +31,7 @@ class TarpitFilter(django_filters.FilterSet):
         fields = {
             'ip_address': ['exact', 'icontains'],
             'country_code': ['exact'],
-            'abuse_confidence_score': ['exact', 'gte', 'lte'],
+            'abuseipdb_confidence_score': ['exact', 'gte', 'lte'],
             'last_reported_at': ['exact', 'date__gte', 'date__lte'],
             'src_latitude': ['exact', 'gte', 'lte'],
             'src_longitude': ['exact', 'gte', 'lte'],
@@ -44,7 +44,7 @@ class SuspectFilter(django_filters.FilterSet):
             'ip_address': ['exact', 'icontains'],
             'country_code': ['exact'],
             'city': ['exact', 'icontains'],
-            'abuse_confidence_score': ['exact', 'gte', 'lte'],
+            'abuseipdb_confidence_score': ['exact', 'gte', 'lte'],
             'last_reported_at': ['exact', 'date__gte', 'date__lte'],
             'timestamp_added': ['exact', 'date__gte', 'date__lte'],
         }

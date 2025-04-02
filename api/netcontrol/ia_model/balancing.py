@@ -5,7 +5,7 @@ file_path = "datasets/Total2_classified.csv"
 dataset = pd.read_csv(file_path)
 
 
-X = dataset.drop(columns=["classification", "ip"])
+X = dataset.drop(columns=["classification", "ip_address"])
 y = dataset["classification"]
 
 
@@ -19,18 +19,18 @@ balanced_dataset = pd.concat(
 )
 
 
-original_ips = dataset[["ip", "classification"]]
+original_ips = dataset[["ip_address", "classification"]]
 
 
-balanced_dataset["ip"] = balanced_dataset.index.map(
+balanced_dataset["ip_address"] = balanced_dataset.index.map(
     lambda idx: (
-        original_ips["ip"][idx] if idx < len(original_ips) else f"synthetic_ip_{idx}"
+        original_ips["ip_address"][idx] if idx < len(original_ips) else f"synthetic_ip_{idx}"
     )
 )
 
 
 balanced_dataset = balanced_dataset[
-    ["ip"] + [col for col in balanced_dataset.columns if col != "ip"]
+    ["ip_address"] + [col for col in balanced_dataset.columns if col != "ip_address"]
 ]
 
 

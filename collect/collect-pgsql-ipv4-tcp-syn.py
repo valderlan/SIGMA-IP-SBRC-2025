@@ -192,21 +192,21 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
                 # Insere na blacklist local
                 query = """
-                    INSERT INTO bl_address_local (ip_address, country_code, city, abuse_confidence_score, total_reports, num_distinct_users, virustotal_reputation, harmless_virustotal, malicious_virustotal, suspicious_virustotal, undetected_virustotal, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
+                    INSERT INTO bl_address_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 values = (
                     ip_address,
                     country_code,
                     city,
-                    response_data["abuse_confidence_score"],
-                    response_data["total_reports"],
-                    response_data["num_distinct_users"],
+                    response_data["abuseipdb_confidence_score"],
+                    response_data["abuseipdb_total_reports"],
+                    response_data["abuseipdb_num_distinct_users"],
                     response_data["virustotal_reputation"],
-                    response_data["harmless_virustotal"],
-                    response_data["malicious_virustotal"],
-                    response_data["suspicious_virustotal"],
-                    response_data["undetected_virustotal"],
+                    response_data["virustotal_harmless"],
+                    response_data["virustotal_malicious"],
+                    response_data["virustotal_suspicious"],
+                    response_data["virustotal_undetected"],
                     response_data["ipvoid_detection_count"],
                     response_data["risk_recommended_pulsedive"],
                     response_data["last_reported_at"],
@@ -224,6 +224,52 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
                 tarpitrule5.deletar_ip_tarpit(ip=ip_address)
                 return checagem_wl_local_time, execution_request, execution_time, execution_blacklist, 0
+            
+
+            elif status == "suspicious":
+                start_time = time.time()
+
+                print("chegou na status suspect")
+                print(f"status: {status}")
+
+                # Insere na suspect local
+                query = """
+                    INSERT INTO suspect_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                values = (
+                    ip_address,
+                    country_code,
+                    city,
+                    response_data["abuseipdb_confidence_score"],
+                    response_data["abuseipdb_total_reports"],
+                    response_data["abuseipdb_num_distinct_users"],
+                    response_data["virustotal_reputation"],
+                    response_data["virustotal_harmless"],
+                    response_data["virustotal_malicious"],
+                    response_data["virustotal_suspicious"],
+                    response_data["virustotal_undetected"],
+                    response_data["ipvoid_detection_count"],
+                    response_data["risk_recommended_pulsedive"],
+                    response_data["last_reported_at"],
+                    src_longitude,
+                    src_latitude
+                )
+
+                cur.execute(query, values)
+                conn.commit()
+                print("Dados inseridos na tabela suspect_local com sucesso")
+
+                # Aplica as regras pra suspect
+                
+
+                # Calcula o tempo de execução
+                execution_suspect = (time.time() - start_time) * 1000
+                print(f"Tempo pra aplicar regras no firewall (Suspect): {execution_suspect:.3f} milisegundos")
+
+                tarpitrule5.deletar_ip_tarpit(ip=ip_address)
+                return checagem_wl_local_time, execution_request, execution_time, 0, execution_suspect
+
 
             elif status == "whitelist":
                 # Começa temporizador
@@ -234,21 +280,21 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
                 # Insere na whitelist local
                 query = """
-                    INSERT INTO wl_address_local (ip_address, country_code, city, abuse_confidence_score, total_reports, num_distinct_users, virustotal_reputation, harmless_virustotal, malicious_virustotal, suspicious_virustotal, undetected_virustotal, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
+                    INSERT INTO wl_address_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 values = (
                     ip_address,
                     country_code,
                     city,
-                    response_data["abuse_confidence_score"],
-                    response_data["total_reports"],
-                    response_data["num_distinct_users"],
+                    response_data["abuseipdb_confidence_score"],
+                    response_data["abuseipdb_total_reports"],
+                    response_data["abuseipdb_num_distinct_users"],
                     response_data["virustotal_reputation"],
-                    response_data["harmless_virustotal"],
-                    response_data["malicious_virustotal"],
-                    response_data["suspicious_virustotal"],
-                    response_data["undetected_virustotal"],
+                    response_data["virustotal_harmless"],
+                    response_data["virustotal_malicious"],
+                    response_data["virustotal_suspicious"],
+                    response_data["virustotal_undetected"],
                     response_data["ipvoid_detection_count"],
                     response_data["risk_recommended_pulsedive"],
                     response_data["last_reported_at"],
@@ -281,14 +327,14 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
                     ip_address,
                     country_code,
                     city,
-                    response_data["abuse_confidence_score"],
-                    response_data["total_reports"],
-                    response_data["num_distinct_users"],
+                    response_data["abuseipdb_confidence_score"],
+                    response_data["abuseipdb_total_reports"],
+                    response_data["abuseipdb_num_distinct_users"],
                     response_data["virustotal_reputation"],
-                    response_data["harmless_virustotal"],
-                    response_data["malicious_virustotal"],
-                    response_data["suspicious_virustotal"],
-                    response_data["undetected_virustotal"],
+                    response_data["virustotal_harmless"],
+                    response_data["virustotal_malicious"],
+                    response_data["virustotal_suspicious"],
+                    response_data["virustotal_undetected"],
                     response_data["ipvoid_detection_count"],
                     response_data["risk_recommended_pulsedive"],
                     response_data["last_reported_at"],
@@ -315,14 +361,14 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
                     ip_address,
                     country_code,
                     city,
-                    response_data["abuse_confidence_score"],
-                    response_data["total_reports"],
-                    response_data["num_distinct_users"],
+                    response_data["abuseipdb_confidence_score"],
+                    response_data["abuseipdb_total_reports"],
+                    response_data["abuseipdb_num_distinct_users"],
                     response_data["virustotal_reputation"],
-                    response_data["harmless_virustotal"],
-                    response_data["malicious_virustotal"],
-                    response_data["suspicious_virustotal"],
-                    response_data["undetected_virustotal"],
+                    response_data["virustotal_harmless"],
+                    response_data["virustotal_malicious"],
+                    response_data["virustotal_suspicious"],
+                    response_data["virustotal_undetected"],
                     response_data["ipvoid_detection_count"],
                     response_data["risk_recommended_pulsedive"],
                     response_data["last_reported_at"],

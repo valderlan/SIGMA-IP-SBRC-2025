@@ -36,14 +36,14 @@ def verificar_ips_antigos_wl():
             'ip_address': obj_whitelist.ip_address,
             'country_code': obj_whitelist.country_code,
             'city': obj_whitelist.city,
-            'abuse_confidence_score': obj_whitelist.abuse_confidence_score,
-            'total_reports': obj_whitelist.total_reports,
-            'num_distinct_users': obj_whitelist.num_distinct_users,
+            'abuse_confidence_score': obj_whitelist.abuseipdb_confidence_score,
+            'total_reports': obj_whitelist.abuseipdb_total_reports,
+            'num_distinct_users': obj_whitelist.abuseipdb_num_distinct_users,
             "virustotal_reputation": obj_whitelist.virustotal_reputation,
-            "harmless_virustotal": obj_whitelist.harmless_virustotal,
-            "malicious_virustotal": obj_whitelist.malicious_virustotal,
-            "suspicious_virustotal": obj_whitelist.suspicious_virustotal,
-            "undetected_virustotal": obj_whitelist.undetected_virustotal,
+            "harmless_virustotal": obj_whitelist.virustotal_harmless,
+            "malicious_virustotal": obj_whitelist.virustotal_malicious,
+            "suspicious_virustotal": obj_whitelist.virustotal_suspicious,
+            "undetected_virustotal": obj_whitelist.virustotal_undetected,
             "ipvoid_detection_count": obj_whitelist.ipvoid_detection_count,
             "risk_recommended_pulsedive": obj_whitelist.risk_recommended_pulsedive,
             'last_reported_at': obj_whitelist.last_reported_at,
@@ -76,7 +76,7 @@ def verificar_ips_antigos_wl():
             obj_whitelist.delete()
 
             # Faz o processo de filtragem do IP
-            ReputacaoService.filtrar_tarpit(obj_tarpit.ip_address)
+            ReputacaoService.filtrar_tarpit(obj_tarpit.ip)
 
         except Exception as e:
             print(f"Erro ao inserir {data['ip_address']} na tarpit: {e}")
@@ -94,14 +94,14 @@ def verificar_blacklist():
             'ip_address': obj_blacklist.ip_address,
             'country_code': obj_blacklist.country_code,
             'city': obj_blacklist.city,
-            'abuse_confidence_score': obj_blacklist.abuse_confidence_score,
-            'total_reports': obj_blacklist.total_reports,
-            'num_distinct_users': obj_blacklist.num_distinct_users,
+            'abuse_confidence_score': obj_blacklist.abuseipdb_confidence_score,
+            'total_reports': obj_blacklist.abuseipdb_total_reports,
+            'num_distinct_users': obj_blacklist.abuseipdb_num_distinct_users,
             "virustotal_reputation": obj_blacklist.virustotal_reputation,
-            "harmless_virustotal": obj_blacklist.harmless_virustotal,
-            "malicious_virustotal": obj_blacklist.malicious_virustotal,
-            "suspicious_virustotal": obj_blacklist.suspicious_virustotal,
-            "undetected_virustotal": obj_blacklist.undetected_virustotal,
+            "harmless_virustotal": obj_blacklist.virustotal_harmless,
+            "malicious_virustotal": obj_blacklist.virustotal_malicious,
+            "suspicious_virustotal": obj_blacklist.virustotal_suspicious,
+            "undetected_virustotal": obj_blacklist.virustotal_undetected,
             "ipvoid_detection_count": obj_blacklist.ipvoid_detection_count,
             "risk_recommended_pulsedive": obj_blacklist.risk_recommended_pulsedive,
             'last_reported_at': obj_blacklist.last_reported_at,

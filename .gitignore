@@ -29,3 +29,20 @@ docker/postgres/
 
 # Ignorar o CSV gerado (cada um tem o seu)
 *.csv
+
+# IA
+.env-sigma
+__pycache__/
+*.py[cod]
+*$py.class
+*.csv
+*.log
+.venv
+.env-ia
+*.png
+*.joblib
+*.keras
+data/
+datasets/
+outputs/
+weights/

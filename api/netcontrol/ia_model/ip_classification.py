@@ -8,8 +8,13 @@ import pandas as pd
 
 from feature_normalizer import FeatureNormalizer
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUTS_DIR = os.path.join(BASE_DIR, 'outputs')
+CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')
+IP_CLASSIFICATION_LOG_PATH = os.path.join(OUTPUTS_DIR, 'ip_classification.log')
 
-def setup_logging(log_file="outputs/ip_classification.log"):
+
+def setup_logging(log_file=IP_CLASSIFICATION_LOG_PATH):
     """Configures the logging system.
 
     Args:
@@ -29,7 +34,7 @@ def setup_logging(log_file="outputs/ip_classification.log"):
     return logging.getLogger(__name__)
 
 
-def classify_ips_and_generate_plots(config_path="config.json", output_dir="outputs"):
+def classify_ips_and_generate_plots(config_path=CONFIG_PATH, output_dir=OUTPUTS_DIR):
     """Classifies IPs using FeatureNormalizer and generates plots.
 
     This function uses FeatureNormalizer to process the dataset, classify IPs,
@@ -59,7 +64,7 @@ def classify_ips_and_generate_plots(config_path="config.json", output_dir="outpu
 
     logger.info("3. Calculating final score...")
 
-    score_columns = [col for col in scores.columns if col != "ip"]
+    score_columns = [col for col in scores.columns if col != "ip_address"]
     scores_sum = scores[score_columns].sum(axis=1)
 
     logger.info("4. Adding classification...")

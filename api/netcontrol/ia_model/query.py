@@ -7,14 +7,19 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-from .feature_normalizer import FeatureNormalizer
-from .predict_new_data import get_available_models, predict_ip_classification
+from feature_normalizer import FeatureNormalizer
+from predict_new_data import get_available_models, predict_ip_classification
 
 # python query.py input_dataset.csv output_dataset.csv
 # python query.py input_dataset.csv output_dataset.csv model_name
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(BASE_DIR, 'data', 'models')
+MODEL_TIMING_RESULTS_PATH = os.path.join(BASE_DIR, 'outputs', 'model_timing_results.csv')
+MODEL_PREDICTION_LOG_PATH = os.path.join(BASE_DIR, 'outputs', 'model_prediction.log')
 
-def setup_logging(log_file="outputs/model_prediction.log"):
+
+def setup_logging(log_file=MODEL_PREDICTION_LOG_PATH):
     """Configures the logging system.
 
     Args:
@@ -40,22 +45,12 @@ def main():
     # Initialize logger
     logger = setup_logging()
 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
     # Directory where models are saved
-    models_dir = os.path.join(BASE_DIR, 'data', 'models')
+    models_dir = MODELS_DIR
 
     # Input and output dataset paths
-    dataset_path = os.path.join(BASE_DIR, "datasets", "Total_test1.csv")
-
-    df = pd.read_csv(dataset_path)
-    print('Colunas do CSV:')
-    print(df.columns.tolist())
-
-
-    # output_path = "/home/davioliveira/projects/SIGMA-IP-SBRC-2025/api/netcontrol/ia_model/datasets/test_normalized.csv"  # Normalized output dataset
-    output_path = os.path.join(BASE_DIR, "datasets", "test_normalized.csv")
-
+    dataset_path = os.path.join(BASE_DIR, 'datasets', 'Total_test1.csv')  # Dataset to be normalized
+    output_path = os.path.join(BASE_DIR, 'datasets', 'test_normalized.csv') # Normalized output dataset
 
     # # If command-line arguments are provided, use them
     # if len(sys.argv) > 1:
@@ -152,7 +147,7 @@ def main():
     logger.info("\n" + str(sample_predictions[fastest_model].head(sample_size)))
 
     # Export results to CSV
-    results_path = "outputs/model_timing_results.csv"
+    results_path = MODEL_TIMING_RESULTS_PATH
     results_df.to_csv(results_path, index=False)
     logger.info(f"\nResults exported to: {results_path}")
 

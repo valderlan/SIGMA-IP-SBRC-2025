@@ -6,10 +6,13 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.models import load_model
 
-from .config.config import SCORE_COLS
+from config.config import SCORE_COLS
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PREDICTION_LOG_PATH = os.path.join(BASE_DIR, 'outputs', 'model_prediction.log')
 
 
-def setup_logging(log_file="outputs/prediction.log"):
+def setup_logging(log_file=MODEL_PREDICTION_LOG_PATH):
     """Configures the logging system.
 
     Args:
@@ -84,8 +87,8 @@ def predict_ip_classification(input_path, models_dir, model_name):
     predictions = le.inverse_transform(y_pred)
 
     results_df = pd.DataFrame()
-    if "ip" in new_df.columns:
-        results_df["ip"] = new_df["ip"]
+    if "ip_address" in new_df.columns:
+        results_df["ip_address"] = new_df["ip_address"]
     results_df["classification"] = predictions
     results_df["model_used"] = model_name
 

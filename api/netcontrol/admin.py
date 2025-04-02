@@ -2,8 +2,8 @@ from django.contrib import admin
 from .models import Blacklist, Whitelist, Tarpit, Suspect
 
 class BlacklistAdmin(admin.ModelAdmin):
-    search_fields = ['id', 'ip_address', 'country_code', 'city', 'abuse_confidence_score', 'last_reported_at', 'timestamp_added']
-    list_display = ['id', 'ip_address', 'country_code', 'city', 'abuse_confidence_score', 'last_reported_at', 'timestamp_added']
+    search_fields = ['id', 'ip_address', 'country_code', 'city', 'abuseipdb_confidence_score', 'last_reported_at', 'timestamp_added']
+    list_display = ['id', 'ip_address', 'country_code', 'city', 'abuseipdb_confidence_score', 'last_reported_at', 'timestamp_added']
     list_filter = ['country_code', 'last_reported_at', 'timestamp_added']
     
     
@@ -20,8 +20,8 @@ class TarpitAdmin(admin.ModelAdmin):
 
 
 class SuspectAdmin(admin.ModelAdmin):
-    search_fields = ['id', 'ip_address', 'country_code', 'city', 'abuse_confidence_score', 'last_reported_at', 'timestamp_added']
-    list_display = ['id', 'ip_address', 'country_code', 'city', 'abuse_confidence_score', 'last_reported_at', 'timestamp_added']
+    search_fields = ['id', 'ip_address', 'country_code', 'city', 'abuseipdb_confidence_score', 'last_reported_at', 'timestamp_added']
+    list_display = ['id', 'ip_address', 'country_code', 'city', 'abuseipdb_confidence_score', 'last_reported_at', 'timestamp_added']
     list_filter = ['country_code', 'last_reported_at', 'timestamp_added']
 
 
