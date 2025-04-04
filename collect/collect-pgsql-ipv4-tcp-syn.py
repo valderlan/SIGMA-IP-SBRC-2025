@@ -60,15 +60,17 @@ service_mapping = {int(k): v for k, v in mappings["service_mapping"].items()}
 # Cabeçalho do CSV
 header = [
     "src_ip", "dst_ip",
-    "src_tempo_checagem_iptables",
+    "src_tempo_checagem_bl_local",
     "src_tempo_checagem_wl_local",
+    "src_tempo_checagem_suspect_local"
     "src_tempo_resposta_api",
     "src_tempo_checagem_api",
     "src_tempo_aplicar_regras_blacklist",
     "src_tempo_aplicar_regras_whitelist",
     "src_tempo_aplicar_regras_suspect",
-    "dst_tempo_checagem_iptables",
+    "dst_tempo_checagem_bl_local",
     "dst_tempo_checagem_wl_local",
+    "dst_tempo_checagem_suspect_local",
     "dst_tempo_resposta_api",
     "dst_tempo_checagem_api",
     "dst_tempo_aplicar_regras_blacklist",
@@ -167,6 +169,18 @@ def ip_existe_na_bl_address_local(ip_address):
 
     return execution_check_blacklist, cur.fetchone() is not None
 
+def ip_existe_na_suspect_local(ip_address):
+    # Começa o temporizador
+    start_check_suspect = time.time()
+
+    cur.execute("SELECT 1 FROM suspect_local WHERE ip_address = %s;", (ip_address,))
+
+    # Calcula o tempo de execução
+    suspect_check_time = (time.time() - start_check_suspect) * 1000
+    logger.info(f"Tempo de checagem na suspect_local: {suspect_check_time:.3f} milisegundos")
+
+    return suspect_check_time, cur.fetchone() is not None
+
 
 def inserir_ip_na_lista(tabela, ip_address, country_code, city, response_data, src_longitude, src_latitude):
     query = f"""
@@ -216,12 +230,14 @@ def aplicar_regras(status, ip_address):
 
 
 def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_latitude, token):
+    logger.info(f"\nChecagem para IP {ip_address}")
+
     # Verificar se o IP está na wl_address_local do banco local
     checagem_wl_local_time, ip_existe_wl_local = ip_existe_na_wl_address_local(ip_address)
 
     if ip_existe_wl_local:
         logger.info(f"IP {ip_address} está na whitelist local, acesso liberado.")
-        return checagem_wl_local_time, 0, 0
+        return checagem_wl_local_time, 0, 0, 0, 0, 0
     else:
         # Começa temporizador
         start_time = time.time()
@@ -244,8 +260,6 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
             'ip_address': ip_address,
             'country_code': country_code,
             'city': city,
-            # 'abuseipdb_confidence_score': None,
-            # 'last_reported_at': None,
             'src_longitude': src_longitude,
             'src_latitude': src_latitude
         }
@@ -278,7 +292,7 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
                 return checagem_wl_local_time, api_response_time, execution_time, time_apply_bl_rules, 0, 0
             
-            elif status == "suspicious":
+            elif status in ["suspicious", "existente_suspect"]:
                 inserir_ip_na_lista("suspect_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
 
                 start_time = time.time()
@@ -304,261 +318,10 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
                 return checagem_wl_local_time, api_response_time, execution_time, 0, time_apply_wl_rules, 0
 
-            # É necessário o tempo de aplicar as regras específicas para cada IP?
-
-            # # Remove IP da tarpit no IPtables
-            # tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-
-            # # Calcula tempo total
-            # execution_time = (time.time() - start_time) * 1000
-            # logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
-
-            # return checagem_wl_local_time, execution_request, execution_time
-
         else:
             logger.error(f"Erro ao enviar IP para API: {response.status_code}")
+            tarpitrule5.deletar_ip_tarpit(ip=ip_address)
 
-
-
-
-
-
-
-
-        #     if status == "blacklist" or status == "none":
-        #         # Começa temporizador
-        #         start_time = time.time()
-
-        #         # Aplica as regras pra blacklist
-        #         print("chegou na status blacklist")
-
-        #         # Insere na blacklist local
-        #         query = """
-        #             INSERT INTO bl_address_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
-        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        #         """
-        #         values = (
-        #             ip_address,
-        #             country_code,
-        #             city,
-        #             response_data["abuseipdb_confidence_score"],
-        #             response_data["abuseipdb_total_reports"],
-        #             response_data["abuseipdb_num_distinct_users"],
-        #             response_data["virustotal_reputation"],
-        #             response_data["virustotal_harmless"],
-        #             response_data["virustotal_malicious"],
-        #             response_data["virustotal_suspicious"],
-        #             response_data["virustotal_undetected"],
-        #             response_data["ipvoid_detection_count"],
-        #             response_data["risk_recommended_pulsedive"],
-        #             response_data["last_reported_at"],
-        #             src_longitude,
-        #             src_latitude
-        #         )
-        #         cur.execute(query, values)
-        #         conn.commit()
-
-        #         blacklist_rules.apply_blacklist_rules(ip=ip_address)
-
-        #         # Calcula o tempo de execução
-        #         execution_blacklist = time.time() - start_time
-        #         print(f"Tempo pra aplicar regras no firewall (Blacklist): {execution_blacklist:.3f} segundos")
-
-        #         tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-        #         return checagem_wl_local_time, execution_request, execution_time, execution_blacklist, 0
-            
-
-        #     elif status == "suspicious":
-        #         start_time = time.time()
-
-        #         print("chegou na status suspect")
-        #         print(f"status: {status}")
-
-        #         # Insere na suspect local
-        #         query = """
-        #             INSERT INTO suspect_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
-        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        #         """
-        #         values = (
-        #             ip_address,
-        #             country_code,
-        #             city,
-        #             response_data["abuseipdb_confidence_score"],
-        #             response_data["abuseipdb_total_reports"],
-        #             response_data["abuseipdb_num_distinct_users"],
-        #             response_data["virustotal_reputation"],
-        #             response_data["virustotal_harmless"],
-        #             response_data["virustotal_malicious"],
-        #             response_data["virustotal_suspicious"],
-        #             response_data["virustotal_undetected"],
-        #             response_data["ipvoid_detection_count"],
-        #             response_data["risk_recommended_pulsedive"],
-        #             response_data["last_reported_at"],
-        #             src_longitude,
-        #             src_latitude
-        #         )
-
-        #         cur.execute(query, values)
-        #         conn.commit()
-        #         print("Dados inseridos na tabela suspect_local com sucesso")
-
-        #         # Aplica as regras pra suspect
-                
-
-        #         # Calcula o tempo de execução
-        #         execution_suspect = (time.time() - start_time) * 1000
-        #         print(f"Tempo pra aplicar regras no firewall (Suspect): {execution_suspect:.3f} milisegundos")
-
-        #         tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-        #         return checagem_wl_local_time, execution_request, execution_time, 0, execution_suspect
-
-
-        #     elif status == "whitelist":
-        #         # Começa temporizador
-        #         start_time = time.time()
-
-        #         print("chegou na status whitelist")
-        #         print(f"status: {status}")
-
-        #         # Insere na whitelist local
-        #         query = """
-        #             INSERT INTO wl_address_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
-        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        #         """
-        #         values = (
-        #             ip_address,
-        #             country_code,
-        #             city,
-        #             response_data["abuseipdb_confidence_score"],
-        #             response_data["abuseipdb_total_reports"],
-        #             response_data["abuseipdb_num_distinct_users"],
-        #             response_data["virustotal_reputation"],
-        #             response_data["virustotal_harmless"],
-        #             response_data["virustotal_malicious"],
-        #             response_data["virustotal_suspicious"],
-        #             response_data["virustotal_undetected"],
-        #             response_data["ipvoid_detection_count"],
-        #             response_data["risk_recommended_pulsedive"],
-        #             response_data["last_reported_at"],
-        #             src_longitude,
-        #             src_latitude
-        #         )
-
-        #         cur.execute(query, values)
-        #         conn.commit()
-        #         print("Dados inseridos na tabela wl_address_local com sucesso")
-
-        #         # Aplica as regras pra whitelist
-        #         whitelist_rules.apply_whitelist_rules(ip=ip_address)
-
-        #         # Calcula o tempo de execução
-        #         execution_whitelist = (time.time() - start_time) * 1000
-        #         print(f"Tempo pra aplicar regras no firewall (Whitelist): {execution_whitelist:.3f} milisegundos")
-
-        #         tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-        #         return checagem_wl_local_time, execution_request, execution_time, 0, execution_whitelist
-
-        #     elif status == "existente_whitelist":
-        #         print("Já existe no banco da API")
-        #         # Insere na whitelist local
-        #         query = """
-        #             INSERT INTO wl_address_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
-        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        #         """
-        #         values = (
-        #             ip_address,
-        #             country_code,
-        #             city,
-        #             response_data["abuseipdb_confidence_score"],
-        #             response_data["abuseipdb_total_reports"],
-        #             response_data["abuseipdb_num_distinct_users"],
-        #             response_data["virustotal_reputation"],
-        #             response_data["virustotal_harmless"],
-        #             response_data["virustotal_malicious"],
-        #             response_data["virustotal_suspicious"],
-        #             response_data["virustotal_undetected"],
-        #             response_data["ipvoid_detection_count"],
-        #             response_data["risk_recommended_pulsedive"],
-        #             response_data["last_reported_at"],
-        #             src_longitude,
-        #             src_latitude
-        #         )
-        #         cur.execute(query, values)
-        #         conn.commit()
-
-        #         # Aplica as regras para whitelist
-        #         whitelist_rules.apply_whitelist_rules(ip=ip_address)
-
-        #         tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-        #         return checagem_wl_local_time, execution_request, execution_time, 0, 0
-            
-        #     elif status == "existente_suspect":
-        #         print(f"O IP {ip_address} já existe no banco da API")
-        #         # Insere na suspect local
-        #         query = """
-        #             INSERT INTO suspect_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
-        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        #         """
-        #         values = (
-        #             ip_address,
-        #             country_code,
-        #             city,
-        #             response_data["abuseipdb_confidence_score"],
-        #             response_data["abuseipdb_total_reports"],
-        #             response_data["abuseipdb_num_distinct_users"],
-        #             response_data["virustotal_reputation"],
-        #             response_data["virustotal_harmless"],
-        #             response_data["virustotal_malicious"],
-        #             response_data["virustotal_suspicious"],
-        #             response_data["virustotal_undetected"],
-        #             response_data["ipvoid_detection_count"],
-        #             response_data["risk_recommended_pulsedive"],
-        #             response_data["last_reported_at"],
-        #             src_longitude,
-        #             src_latitude
-        #         )
-        #         cur.execute(query, values)
-        #         conn.commit()
-        #         tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-
-        #         return checagem_wl_local_time, execution_request, execution_time, 0, 0
-            
-        #     elif status == "existente_blacklist":
-        #         print(f"O IP {ip_address} já existe no banco da API")
-        #         # Insere na blacklist local
-        #         query = """
-        #             INSERT INTO bl_address_local (ip_address, country_code, city, abuseipdb_confidence_score, abuseipdb_total_reports, abuseipdb_num_distinct_users, virustotal_reputation, virustotal_harmless, virustotal_malicious, virustotal_suspicious, virustotal_undetected, ipvoid_detection_count, risk_recommended_pulsedive, last_reported_at, src_longitude, src_latitude)
-        #             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        #         """
-        #         values = (
-        #             ip_address,
-        #             country_code,
-        #             city,
-        #             response_data["abuseipdb_confidence_score"],
-        #             response_data["abuseipdb_total_reports"],
-        #             response_data["abuseipdb_num_distinct_users"],
-        #             response_data["virustotal_reputation"],
-        #             response_data["virustotal_harmless"],
-        #             response_data["virustotal_malicious"],
-        #             response_data["virustotal_suspicious"],
-        #             response_data["virustotal_undetected"],
-        #             response_data["ipvoid_detection_count"],
-        #             response_data["risk_recommended_pulsedive"],
-        #             response_data["last_reported_at"],
-        #             src_longitude,
-        #             src_latitude
-        #         )
-        #         cur.execute(query, values)
-        #         conn.commit()
-
-        #         tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-        #         blacklist_rules.apply_blacklist_rules(ip=ip_address)
-        #         return checagem_wl_local_time, execution_request, execution_time, 0, 0
-
-        # else:
-        #     print(f"Houve um erro ao inserir o IP {ip_address}: {response.status_code}")
-        #     tarpitrule5.deletar_ip_tarpit(ip=ip_address)
-        #     return checagem_wl_local_time, 0, 0, 0, 0
 
 # Função para inserir dados na tabela de tráfego de rede
 def insert_data(src_ip, dst_ip, protocol_name, src_service, dst_service, src_country_code, src_city, src_lat, src_lon, dst_country_code, dst_city, dst_lat, dst_lon, src_port, dst_port, connection_time):
@@ -629,22 +392,11 @@ def handle_packet(packet):
         # src_ip_iptables_time, src_ip_iptables_is_blacklisted = checar_blacklist_ip_tables(src_ip)
         # dst_ip_iptables_time, dst_ip_iptables_is_blacklisted = checar_blacklist_ip_tables(dst_ip)
 
-        src_execution_checagem_blacklist, src_is_blacklisted = ip_existe_na_bl_address_local(src_ip)
-        dst_execution_checagem_blacklist, dst_is_blacklisted = ip_existe_na_bl_address_local(dst_ip)
+        src_checagem_bl_local_time, src_is_blacklisted = ip_existe_na_bl_address_local(src_ip)
+        dst_checagem_bl_local_time, dst_is_blacklisted = ip_existe_na_bl_address_local(dst_ip)
 
-        # Inicializando as variáveis de tempo como 0 para evitar erros
-        src_checagem_wl_local_time = 0
-        src_request_api_time = 0
-        src_total_execution_time = 0
-        # src_execution_blacklist = 0
-        # src_execution_whitelist = 0
-        dst_checagem_wl_local_time = 0
-        dst_request_api_time = 0
-        dst_total_execution_time = 0
-        # dst_execution_blacklist = 0
-        # dst_execution_whitelist = 0
-        insert_time = 0
-        detection_time = 0
+        src_checagem_suspect_local_time, src_is_suspect = ip_existe_na_suspect_local(src_ip)
+        dst_checagem_suspect_local_time, dst_is_suspect = ip_existe_na_suspect_local(dst_ip)
 
         # Checagem do IP de origem e destino na blacklist do iptables (caso esteja lá, nem insere na network-traffic)
         if src_is_blacklisted:
@@ -652,6 +404,12 @@ def handle_packet(packet):
             pass
         elif dst_is_blacklisted:
             logger.info(f"O IP de destino {dst_ip} está na bl_address_local")
+            pass
+        elif src_is_suspect:
+            logger.info(f"O IP de origem {src_ip} está na suspect_local")
+            pass
+        elif dst_is_suspect:
+            logger.info(f"O IP de destino {dst_ip} está na suspect_local")
             pass
         else:
             # Chama a função insert_data
@@ -667,16 +425,18 @@ def handle_packet(packet):
 
             deletar_da_network_traffic(src_ip, dst_ip)
 
-        data = [
-            src_ip, dst_ip,
-            src_execution_checagem_blacklist, src_checagem_wl_local_time, 
-            src_request_api_time, src_total_execution_time,
-            src_time_apply_bl_rules, src_time_apply_wl_rules, src_time_apply_suspect_rules,
-            dst_execution_checagem_blacklist, dst_checagem_wl_local_time, dst_request_api_time,
-            dst_total_execution_time, dst_time_apply_bl_rules, dst_time_apply_wl_rules,
-            dst_time_apply_suspect_rules, insert_time, detection_time,
-        ]
-        write_to_csv(data)
+            data = [
+                src_ip, dst_ip,
+                src_checagem_bl_local_time, src_checagem_wl_local_time, 
+                src_checagem_suspect_local_time,
+                src_request_api_time, src_total_execution_time,
+                src_time_apply_bl_rules, src_time_apply_wl_rules, src_time_apply_suspect_rules,
+                dst_checagem_bl_local_time, dst_checagem_wl_local_time, 
+                dst_checagem_suspect_local_time, dst_request_api_time,
+                dst_total_execution_time, dst_time_apply_bl_rules, dst_time_apply_wl_rules,
+                dst_time_apply_suspect_rules, insert_time, detection_time,
+            ]
+            write_to_csv(data)
 
 
 if __name__ == "__main__":
