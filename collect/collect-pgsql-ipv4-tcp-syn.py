@@ -62,7 +62,7 @@ header = [
     "src_ip", "dst_ip",
     "src_tempo_checagem_bl_local",
     "src_tempo_checagem_wl_local",
-    "src_tempo_checagem_suspect_local"
+    "src_tempo_checagem_suspect_local",
     "src_tempo_resposta_api",
     "src_tempo_checagem_api",
     "src_tempo_aplicar_regras_blacklist",
@@ -153,7 +153,7 @@ def ip_existe_na_wl_address_local(ip_address):
 
     # Calcula o tempo de execução
     execution_time = (time.time() - start_time) * 1000
-    logger.info(f"Tempo de checagem na wl_address_local: {execution_time:.3f} milisegundos")
+    logger.info(f"Tempo de checagem do IP {ip_address} na wl_address_local: {execution_time:.3f} milisegundos")
 
     return execution_time, cur.fetchone() is not None
 
@@ -165,7 +165,7 @@ def ip_existe_na_bl_address_local(ip_address):
 
     # Calcula o tempo de execução
     execution_check_blacklist = (time.time() - start_check_blacklist) * 1000
-    logger.info(f"Tempo de checagem na bl_address_local: {execution_check_blacklist:.3f} milisegundos")
+    logger.info(f"Tempo de checagem do IP {ip_address} na bl_address_local: {execution_check_blacklist:.3f} milisegundos")
 
     return execution_check_blacklist, cur.fetchone() is not None
 
@@ -177,7 +177,7 @@ def ip_existe_na_suspect_local(ip_address):
 
     # Calcula o tempo de execução
     suspect_check_time = (time.time() - start_check_suspect) * 1000
-    logger.info(f"Tempo de checagem na suspect_local: {suspect_check_time:.3f} milisegundos")
+    logger.info(f"Tempo de checagem do IP {ip_address} na suspect_local: {suspect_check_time:.3f} milisegundos")
 
     return suspect_check_time, cur.fetchone() is not None
 
@@ -230,8 +230,6 @@ def aplicar_regras(status, ip_address):
 
 
 def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_latitude, token):
-    logger.info(f"\nChecagem para IP {ip_address}")
-
     # Verificar se o IP está na wl_address_local do banco local
     checagem_wl_local_time, ip_existe_wl_local = ip_existe_na_wl_address_local(ip_address)
 
