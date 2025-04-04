@@ -160,6 +160,6 @@ SPECTACULAR_SETTINGS = {
 # Django Crontab
 CRONJOBS = [
     ('0 12 1 * *', 'netcontrol.cron.verificar_ips_antigos_wl'), # Vai executar no dia 1 de cada mês ao meio-dia
-    ('0 12 */7 * *', 'netcontrol.cron.verificar_blacklist'), # Vai executar a cada 7 dias ao meio-dia
+    ('0 12 */7 * *', 'netcontrol.cron.verificar_ips_antigos_blacklist'), # Vai executar a cada 7 dias ao meio-dia
     ('0 12 */3 * *', 'netcontrol.cron.update_blacklist'), # Vai executar a cada 3 dias ao meio-dia
 ]

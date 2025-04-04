@@ -9,8 +9,11 @@ from netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
 from netcontrol.pagination import GenericPagination
 from netcontrol.serializers import (BlacklistSerializer, WhitelistSerializer, TarpitSerializer, SuspectSerializer)
 from netcontrol.filters import (BlacklistFilter, WhitelistFilter, TarpitFilter, SuspectFilter)
-from netcontrol.services import ReputacaoService
+from netcontrol.services import filtrar_tarpit
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 # view para blacklist
 class BlacklistViewSet(viewsets.ModelViewSet):
@@ -55,27 +58,26 @@ class TarpitViewSet(viewsets.ModelViewSet):
         # Começa temporizador
         start_time = time.time()
 
-        # cria o objeto na Tarpit 
         super().create(request, *args, **kwargs)
 
         ip_address = request.data.get('ip_address')  # obtém o IP enviado
-        print(f"IP recebido: {ip_address}")
+        logger.info(f"\nIP recebido: {ip_address}")
 
-        # chama o serviço de reputação
-        response = ReputacaoService.filtrar_tarpit(ip_address)
+        # Chama o serviço de reputação
+        data = filtrar_tarpit(ip_address)
 
-        if not response or "status" not in response:
-            print("Erro: Resposta inválida ou sem status")
+        if not data or "status" not in data:
+            logger.error("Erro: Resposta inválida ou sem status")
             return Response({"detail": "Erro ao processar reputação do IP"}, status=500)
 
-        print(f"Status retornado: {response['status']}")
+        logger.info(f"Status retornado: {data['status']}")
 
         # Calcula o tempo de execução. Espera o resultado da requisição p/ contabilizar.
         execution_time = (time.time() - start_time) * 1000
-        print(f"Tempo de tratar a requisição na API: {execution_time:.3f} milisegundos")
-
-        # retorna a reputação (black ou white) e o status
-        return Response(response, status=201)
+        logger.info(f"Tempo de tratar a requisição na API: {execution_time:.3f} milisegundos")
+        
+        # Retorna a reputação e o status
+        return Response(data, status=201)
     
 
 class SuspectViewSet(viewsets.ModelViewSet):

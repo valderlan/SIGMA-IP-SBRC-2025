@@ -18,7 +18,7 @@ urlpatterns = [
 
     # urls para suspect
     path('suspect/list/', SuspectViewSet.as_view({'get': 'list', 'post': 'create'})),
-    path('tarpit/<str:ip_address>/', SuspectViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
+    path('suspect/<str:ip_address>/', SuspectViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
 
     # SWAGGER
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
