@@ -10,6 +10,7 @@ import time
 import csv
 import ast
 import logging
+import pandas as pd
 from netcontrol.ia_model.query import main as classificar_ip
 
 load_dotenv()
@@ -175,6 +176,38 @@ def verificar_ip_no_banco(obj_tarpit, tabela, status):
     return None
 
 
+def write_to_csv(data, csv_file):
+    with open(csv_file, 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(data.keys())
+        writer.writerow(data.values())
+
+
+def get_class_distribution(csv_path):
+    logger = logging.getLogger(__name__)
+
+    df = pd.read_csv(csv_path)
+
+    # Filtra a linha onde a coluna "Model" é o modelo que melhor se enquadra (tempo e acurácia)
+    row = df[df["Model"] == "Decision Tree"]
+
+    if row.empty:
+        logger.error("Modelo 'Decision Tree' não encontrado.")
+        return None
+
+    # Pega a string do dicionário de distribuição de classes
+    class_dist_str = row.iloc[0]["Class Distribution"]
+
+    try:
+        class_dist_dict = ast.literal_eval(class_dist_str)
+        logger.info(f"Distribuição de classes do Decision Tree: {class_dist_dict}")
+        # Retorna a classe mais comum
+        return max(class_dist_dict, key=class_dist_dict.get)
+    except Exception as e:
+        logger.error(f"Erro ao converter a distribuição: {e}")
+        return None
+
+
 def filtrar_tarpit(ip_address):
     logger = setup_logging()
 
@@ -223,7 +256,7 @@ def filtrar_tarpit(ip_address):
             classificar_ip()
 
             # Obtendo a resposta do modelo
-            classification = get_class_distribution(CSV_RESULTS_FILE, 3).lower()
+            classification = get_class_distribution(CSV_RESULTS_FILE).lower()
             logger.info(f"Classificação do modelo para IP {obj_tarpit.ip_address}: {classification}")
 
             # Preenche os dados completos antes da salvar
@@ -268,26 +301,5 @@ def filtrar_tarpit(ip_address):
         logger.warning("Nenhum registro encontrado na tabela Tarpit")
         return {"status": "none"}
 
-def write_to_csv(data, csv_file):
-    with open(csv_file, 'w') as file:
-        writer = csv.writer(file)
-        writer.writerow(data.keys())
-        writer.writerow(data.values())
 
-def get_class_distribution(csv_results, line_number):
-    with open(csv_results, 'r', newline='') as file:
-        reader = csv.DictReader(file)
-        
-        for i, row in enumerate(reader, start=1):
-            if i == line_number:
-                class_dist_str = row.get("Class Distribution")
-                
-                if class_dist_str:
-                    try:
-                        class_dist_dict = ast.literal_eval(class_dist_str)  # Converte a string para dicionário
-                        return next(iter(class_dist_dict))  # Retorna a primeira chave do dicionário
-                    except (SyntaxError, ValueError):
-                        return None  # Retorna None se não conseguir converter
-
-    return None  # Retorna None se a linha não existir
     

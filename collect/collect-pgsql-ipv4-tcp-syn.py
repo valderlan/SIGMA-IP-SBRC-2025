@@ -14,7 +14,8 @@ import blacklist_rules
 import csv
 import logging
 
-load_dotenv(os.path.join(os.getcwd(), "api", ".env"))
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
+load_dotenv(dotenv_path)
 
 token = os.environ.get('token')
 

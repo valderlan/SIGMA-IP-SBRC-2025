@@ -5,7 +5,11 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.getcwd(), "api", ".env"))
+script_dir = os.path.dirname(os.path.abspath(__file__))      
+base_dir = os.path.abspath(os.path.join(script_dir, ".."))    
+dotenv_path = os.path.join(base_dir, "api", ".env")        
+
+load_dotenv(dotenv_path)
 
 token = os.environ.get('token')
 
@@ -70,30 +74,34 @@ def ip_ja_existe(ip_address):
         return False  
 
 def inserir_dados_no_postgresql(dados):
-    for registro in dados['data']:
-        # Formata a data para o padrão aceito pelo PostgreSQL
-        data_formatada = datetime.strptime(registro['lastReportedAt'], "%Y-%m-%dT%H:%M:%S+00:00").isoformat()
+    try:
+        for registro in dados['data']:
+            # Formata a data para o padrão aceito pelo PostgreSQL
+            data_formatada = datetime.strptime(registro['lastReportedAt'], "%Y-%m-%dT%H:%M:%S+00:00").isoformat()
 
-        if not ip_ja_existe(registro['ipAddress']):
-            url = 'http://localhost:8000/api/blacklist/list/'
-            headers = {
-                'Authorization': f'Token {token}',
-                'Content-Type': 'application/json'
-            }
+            if not ip_ja_existe(registro['ipAddress']):
+                url = 'http://localhost:8000/api/blacklist/list/'
+                headers = {
+                    'Authorization': f'Token {token}',
+                    'Content-Type': 'application/json'
+                }
 
-            data = {
-                'ip_address': registro['ipAddress'],
-                'country_code': registro['countryCode'],
-                'abuse_confidence_score': registro['abuseConfidenceScore'],
-                'last_reported_at': data_formatada 
-            }
+                data = {
+                    'ip_address': registro['ipAddress'],
+                    'country_code': registro['countryCode'],
+                    'abuseipdb_confidence_score': registro['abuseConfidenceScore'],
+                    'last_reported_at': data_formatada 
+                }
 
-            response = requests.post(url,headers=headers,json=data)
+                response = requests.post(url,headers=headers,json=data)
 
-            if response.status_code == 201:  
-                logger.info(f"IP {registro['ipAddress']} inserido com sucesso na API.")
-            else:
-                logger.error(f"Erro ao inserir IP {registro['ipAddress']} na API:", response.status_code, response.text)
+                if response.status_code == 201:  
+                    logger.info(f"IP {registro['ipAddress']} inserido com sucesso na API.")
+                else:
+                    logger.error(f"Erro ao inserir IP {registro['ipAddress']} na API:", response.status_code, response.text)
+
+    except (Exception) as error:
+        logger.error(f'Erro ao atualizar blacklist com dados do AbuseIPDB: {error}')
 
 if __name__ == "__main__":
     logger = setup_logging()
