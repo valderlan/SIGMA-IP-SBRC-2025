@@ -78,7 +78,7 @@ geoipupdate -f /usr/share/doc/geoipupdate/GeoIP.conf
 ```sh
 . .env/bin/activate
 ```
-## Da permissão de leitura escrita e execução para a venv
+## Dá permissão de leitura, escrita e execução para a venv
 ```sh
 sudo chmod -R a+rwx .env
 ```
@@ -133,18 +133,20 @@ Rodar as instruções SQL
 É necessário criar um super usuário via Django, criar as migrations e aplicá-las. Após isso basta rodar o servidor.
 
 ```sh
-python3 manage.py createsuperuser
-python3 manage.py makemigrations
+cd api/
 python3 manage.py migrate
+python3 manage.py createsuperuser
 python3 manage.py runserver
 ```
 
 ## Ativando Regras de Firewall
 ```sh
-python3 /SIGMA-IP-SBRC-2025/firewall/rules.py
-python3 /SIGMA-IP-SBRC-2025/firewall/tarpitrule5.py
+cd firewall/
+python3 rules.py
+python3 tarpitrule5.py
 ```
 ## Executando o Sniffer de Rede
 ```sh
-sudo /home/{usuario}/projects/SIGMA-IP-SBRC-2025/.env/bin/python3 collect/collect-pgsql-ipv4-tcp-syn.py
+cd collect/
+sudo /home/{usuario}/projects/SIGMA-IP-SBRC-2025/.env/bin/python3 collect-pgsql-ipv4-tcp-syn.py
 ```
