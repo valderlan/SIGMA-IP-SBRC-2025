@@ -8,9 +8,9 @@ import psycopg2
 import os
 import time  
 from dotenv import load_dotenv
-import tarpitrule5
-import whitelist_rules
-import blacklist_rules
+from tarpitrule5 import apply_tarpit_rules, deletar_ip_tarpit
+from whitelist_rules import apply_whitelist_rules
+from blacklist_rules import apply_blacklist_rules
 import csv
 import logging
 
@@ -223,11 +223,11 @@ def inserir_ip_na_lista(tabela, ip_address, country_code, city, response_data, s
 
 def aplicar_regras(status, ip_address):
     if status in ["blacklist", "existente_blacklist"]:
-        blacklist_rules.apply_blacklist_rules(ip=ip_address)
+        apply_blacklist_rules(ip=ip_address)
     elif status in ["whitelist", "existente_whitelist"]:
-        whitelist_rules.apply_whitelist_rules(ip=ip_address)
+        apply_whitelist_rules(ip=ip_address)
     elif status in ["suspect", "existente_suspect"]:
-        tarpitrule5.apply_tarpit_rules(ip=ip_address)
+        apply_tarpit_rules(ip=ip_address)
 
 
 def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_latitude, token):
@@ -242,7 +242,7 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
         start_time = time.time()
 
         # Degradar o IP para limitar sua conexão
-        tarpitrule5.apply_tarpit_rules(ip=ip_address)
+        apply_tarpit_rules(ip=ip_address)
 
         start_request = time.time()
         
@@ -275,8 +275,6 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
             response_data = response.json()
             status = response_data["status"]
             
-            # Remove IP da tarpit no IPtables
-            tarpitrule5.deletar_ip_tarpit(ip=ip_address)
 
             if status in ["blacklist", "none", "existente_blacklist"]:
                 inserir_ip_na_lista("bl_address_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
@@ -287,6 +285,9 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
                 # Calcula tempo total
                 execution_time = (time.time() - start_time) * 1000
+
+                # Remove IP da tarpit no IPtables
+                deletar_ip_tarpit(ip=ip_address)
                 logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
 
                 return checagem_wl_local_time, api_response_time, execution_time, time_apply_bl_rules, 0, 0
@@ -295,11 +296,15 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
                 inserir_ip_na_lista("suspect_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
 
                 start_time = time.time()
-                aplicar_regras(status, ip_address)
+                # Não é necessário pois já está na Tarpit
+                # aplicar_regras(status, ip_address)
                 time_apply_suspect_rules = (time.time() - start_time) * 1000
 
                 # Calcula tempo total
                 execution_time = (time.time() - start_time) * 1000
+
+                # Remove IP da tarpit no IPtables
+                deletar_ip_tarpit(ip=ip_address)
                 logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
 
                 return checagem_wl_local_time, api_response_time, execution_time, 0, 0, time_apply_suspect_rules
@@ -313,13 +318,16 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
                 # Calcula tempo total
                 execution_time = (time.time() - start_time) * 1000
+                
+                # Remove IP da tarpit no IPtables
+                deletar_ip_tarpit(ip=ip_address)
                 logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
 
                 return checagem_wl_local_time, api_response_time, execution_time, 0, time_apply_wl_rules, 0
 
         else:
             logger.error(f"Erro ao enviar IP para API: {response.status_code}")
-            tarpitrule5.deletar_ip_tarpit(ip=ip_address)
+            deletar_ip_tarpit(ip=ip_address)
 
 
 # Função para inserir dados na tabela de tráfego de rede

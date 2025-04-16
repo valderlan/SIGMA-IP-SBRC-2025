@@ -3,7 +3,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from django.db import IntegrityError
 from .models import Blacklist, Whitelist, Tarpit, Suspect
-from .externals import buscar_dados_abuse, buscar_dados_virustotal, buscar_dados_ipvoid, buscar_dados_pulsedive
+from .externals import SearchAbuse, SearchVirusTotal, SearchIPVoid, SearchPulsedive
 from concurrent.futures import ThreadPoolExecutor
 import json
 import time
@@ -92,10 +92,10 @@ def realizar_buscas_paralelas(obj_tarpit):
     with ThreadPoolExecutor() as executor:
         # Faz as requisições para as APIs paralelamente
         futures = {
-            "abuse": executor.submit(buscar_dados_abuse, obj_tarpit),
-            "virustotal": executor.submit(buscar_dados_virustotal, obj_tarpit),
-            "ipvoid": executor.submit(buscar_dados_ipvoid, obj_tarpit),
-            "pulsedive": executor.submit(buscar_dados_pulsedive, obj_tarpit),
+            "abuse": executor.submit(SearchAbuse.buscar_dados_abuse, obj_tarpit),
+            "virustotal": executor.submit(SearchVirusTotal.buscar_dados_virustotal, obj_tarpit),
+            "ipvoid": executor.submit(SearchIPVoid.buscar_dados_ipvoid, obj_tarpit),
+            "pulsedive": executor.submit(SearchPulsedive.buscar_dados_pulsedive, obj_tarpit),
         }
 
         responses = {}

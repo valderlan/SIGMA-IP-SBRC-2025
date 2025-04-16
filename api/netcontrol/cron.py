@@ -1,4 +1,4 @@
-from .externals import buscar_dados_blacklist_abuse
+from .externals import SearchAbuse
 from .services import inserir_dados_no_banco, filtrar_tarpit
 from .models import Blacklist, Whitelist, Tarpit
 from django.utils.timezone import now
@@ -46,7 +46,7 @@ def setup_logging(log_file=CRON_LOGS_PATH):
 def update_blacklist():
     logger = setup_logging()
     logger.info("Buscando dados para atualizar a Blacklist...")
-    dados = buscar_dados_blacklist_abuse()
+    dados = SearchAbuse.buscar_dados_blacklist_abuse()
     if dados:
         inserir_dados_no_banco(dados)
 
