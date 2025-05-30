@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.models import load_model
 
-from config.config import SCORE_COLS
+from .config.config import SCORE_COLS
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PREDICTION_LOG_PATH = os.path.join(BASE_DIR, 'outputs', 'model_prediction.log')

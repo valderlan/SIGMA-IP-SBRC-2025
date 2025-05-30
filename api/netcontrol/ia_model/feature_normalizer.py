@@ -3,7 +3,7 @@ import os
 
 import pandas as pd
 
-from util.map_risk_level import map_risk_level
+from .util.map_risk_level import map_risk_level
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')

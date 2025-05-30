@@ -6,9 +6,8 @@ import time
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
-
-from feature_normalizer import FeatureNormalizer
-from predict_new_data import get_available_models, predict_ip_classification
+from .feature_normalizer import FeatureNormalizer
+from .predict_new_data import get_available_models, predict_ip_classification
 
 # python query.py input_dataset.csv output_dataset.csv
 # python query.py input_dataset.csv output_dataset.csv model_name
