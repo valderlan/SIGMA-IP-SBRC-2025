@@ -39,7 +39,7 @@ def main():
     models_dir = os.path.join(experiment_dir, "models")
 
     config = {
-        "data_file": "datasets/balanced_resultado_cal_w2.csv",
+        "data_file": "datasets/Total2_classified.csv",
         "test_size": 0.2,
         "random_state": 42,
         "score_cols": SCORE_COLS,

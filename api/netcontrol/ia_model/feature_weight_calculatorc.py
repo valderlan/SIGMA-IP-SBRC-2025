@@ -36,7 +36,6 @@ def calculate_final_weights(
     """Calculates the final feature weights and saves them.
 
     This function follows the same logic as feature_analyzer.py but focuses solely on weight calculation.
-    The calculation now properly normalizes the variance before combining it with correlation.
 
     Args:
         config_path (str): Path to the configuration file. Defaults to "config.json".
@@ -153,54 +152,17 @@ def calculate_final_weights(
         }
     )
 
-    # Normalizar a variância para o intervalo [0,1] antes de calcular a importância
-    logger.info("   Normalizing variance to [0,1] range...")
-    if composite_score["Variance"].max() > 0:  # Evitar divisão por zero
-        composite_score["Variance_Normalized"] = composite_score["Variance"] / composite_score["Variance"].max()
-    else:
-        composite_score["Variance_Normalized"] = composite_score["Variance"] * 0
-    
-    # Log das estatísticas da variância antes e depois da normalização
-    logger.info("   Variance statistics before normalization: min=%.4f, max=%.4f, mean=%.4f", 
-                composite_score["Variance"].min(), 
-                composite_score["Variance"].max(), 
-                composite_score["Variance"].mean())
-    
-    logger.info("   Variance statistics after normalization: min=%.4f, max=%.4f, mean=%.4f", 
-                composite_score["Variance_Normalized"].min(), 
-                composite_score["Variance_Normalized"].max(), 
-                composite_score["Variance_Normalized"].mean())
-
-    # Calcular o score de importância usando a variância normalizada
     composite_score["Importance_Score"] = (
-        composite_score["Variance_Normalized"] + composite_score["Correlation"]
+        composite_score["Variance"] + composite_score["Correlation"]
     ) / 2
-    
-    # Adicionar coluna de contribuição para diagnóstico
-    composite_score["Variance_Contribution"] = composite_score["Variance_Normalized"] / (
-        composite_score["Variance_Normalized"] + composite_score["Correlation"]
-    ) * 100
-    
-    composite_score["Correlation_Contribution"] = composite_score["Correlation"] / (
-        composite_score["Variance_Normalized"] + composite_score["Correlation"]
-    ) * 100
 
     composite_score["Type"] = [
         "Blacklist" if col not in inverted_features else "Inverted (Whitelist)"
         for col in composite_score["Feature"]
     ]
 
-    # Ordenar pelo score de importância para melhor visualização
-    composite_score = composite_score.sort_values("Importance_Score", ascending=False)
-
     logger.info(
-        "\nImportance Score Calculations (with normalized variance):\n%s", 
-        composite_score[["Feature", "Variance", "Variance_Normalized", "Correlation", "Importance_Score", "Type"]].to_string(index=False)
-    )
-    
-    logger.info(
-        "\nContribution Analysis (how much each metric contributes to the final score):\n%s", 
-        composite_score[["Feature", "Variance_Contribution", "Correlation_Contribution", "Importance_Score"]].to_string(index=False)
+        "\nImportance Score Calculations:\n%s", composite_score.to_string(index=False)
     )
 
     logger.info("11. Calculating normalized weights...")
@@ -242,67 +204,6 @@ def calculate_final_weights(
     plot_path = os.path.join(output_dir, "correlation_matrix.png")
     plt.savefig(plot_path)
     logger.info(f"Correlation matrix plot saved at: {plot_path}")
-    plt.close()
-    
-    # Gerando gráficos adicionais para visualizar a importância
-    logger.info("14. Generating importance visualization plots...")
-    
-    # Gráfico de barras comparando a variância bruta e normalizada
-    plt.figure(figsize=(14, 8))
-    bar_width = 0.35
-    features = composite_score["Feature"]
-    x = np.arange(len(features))
-    
-    plt.bar(x - bar_width/2, composite_score["Variance"], bar_width, label='Variância Bruta', color='#1f77b4')
-    plt.bar(x + bar_width/2, composite_score["Variance_Normalized"], bar_width, label='Variância Normalizada', color='#ff7f0e')
-    
-    plt.xlabel('Features')
-    plt.ylabel('Valor')
-    plt.title('Comparação entre Variância Bruta e Normalizada')
-    plt.xticks(x, features, rotation=45, ha='right')
-    plt.legend()
-    plt.tight_layout()
-    
-    variance_plot_path = os.path.join(output_dir, "variance_comparison.png")
-    plt.savefig(variance_plot_path)
-    logger.info(f"Variance comparison plot saved at: {variance_plot_path}")
-    plt.close()
-    
-    # Gráfico de barras para visualizar a contribuição da variância e correlação
-    plt.figure(figsize=(14, 8))
-    
-    # Dados para o gráfico de barras empilhadas
-    var_contrib = composite_score["Variance_Normalized"] / 2  # Dividir por 2 para representar a média
-    corr_contrib = composite_score["Correlation"] / 2  # Dividir por 2 para representar a média
-    
-    plt.bar(features, var_contrib, label='Contribuição da Variância', color='#1f77b4')
-    plt.bar(features, corr_contrib, bottom=var_contrib, label='Contribuição da Correlação', color='#ff7f0e')
-    
-    plt.xlabel('Features')
-    plt.ylabel('Contribuição para o Score de Importância')
-    plt.title('Composição do Score de Importância')
-    plt.xticks(rotation=45, ha='right')
-    plt.legend()
-    plt.tight_layout()
-    
-    contribution_plot_path = os.path.join(output_dir, "importance_composition.png")
-    plt.savefig(contribution_plot_path)
-    logger.info(f"Importance composition plot saved at: {contribution_plot_path}")
-    plt.close()
-    
-    # Gráfico final de barras para os pesos normalizados
-    plt.figure(figsize=(14, 8))
-    combined_weights_sorted = combined_weights.sort_values("Final_Weight", ascending=True)
-    
-    plt.barh(combined_weights_sorted["Feature"], combined_weights_sorted["Final_Weight"], color='#2ca02c')
-    plt.xlabel('Peso Final Normalizado')
-    plt.ylabel('Features')
-    plt.title('Pesos Finais das Features')
-    plt.tight_layout()
-    
-    weights_plot_path = os.path.join(output_dir, "final_weights.png")
-    plt.savefig(weights_plot_path)
-    logger.info(f"Final weights plot saved at: {weights_plot_path}")
     plt.close()
 
     logger.info("=== WEIGHT CALCULATION COMPLETED ===")

@@ -3,7 +3,7 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", "netcontrol", ".env")
 load_dotenv(dotenv_path)
 
 # Configurações do PostgreSQL

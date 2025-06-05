@@ -5,9 +5,8 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 
-script_dir = os.path.dirname(os.path.abspath(__file__))      
-base_dir = os.path.abspath(os.path.join(script_dir, ".."))    
-dotenv_path = os.path.join(base_dir, "api", ".env")        
+script_dir = os.path.dirname(os.path.abspath(__file__))         
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", "netcontrol", ".env")      
 
 load_dotenv(dotenv_path)
 
@@ -57,7 +56,7 @@ def buscar_dados():
             return None
 
 def ip_ja_existe(ip_address):
-    url = 'http://localhost:8000/api/blacklist/list/'
+    url = 'http://localhost:8000/api/blacklist/'
     headers = {
         'Authorization': f'Token {token}',
         'Content-Type': 'application/json'
@@ -80,7 +79,7 @@ def inserir_dados_no_postgresql(dados):
             data_formatada = datetime.strptime(registro['lastReportedAt'], "%Y-%m-%dT%H:%M:%S+00:00").isoformat()
 
             if not ip_ja_existe(registro['ipAddress']):
-                url = 'http://localhost:8000/api/blacklist/list/'
+                url = 'http://localhost:8000/api/blacklist/'
                 headers = {
                     'Authorization': f'Token {token}',
                     'Content-Type': 'application/json'

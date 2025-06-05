@@ -231,13 +231,14 @@ def aplicar_regras(status, ip_address):
 
 
 def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_latitude, token):
-    # Verificar se o IP está na wl_address_local do banco local
-    checagem_wl_local_time, ip_existe_wl_local = ip_existe_na_wl_address_local(ip_address)
+    try:
+        # Verificar se o IP está na wl_address_local do banco local
+        checagem_wl_local_time, ip_existe_wl_local = ip_existe_na_wl_address_local(ip_address)
 
-    if ip_existe_wl_local:
-        logger.info(f"IP {ip_address} está na whitelist local, acesso liberado.")
-        return checagem_wl_local_time, 0, 0, 0, 0, 0
-    else:
+        if ip_existe_wl_local:
+            logger.info(f"IP {ip_address} está na whitelist local, acesso liberado.")
+            return checagem_wl_local_time, 0, 0, 0, 0, 0
+
         # Começa temporizador
         start_time = time.time()
 
@@ -246,14 +247,14 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
 
         start_request = time.time()
         
-        # Se o IP não está na whitelist, mover para a tarpit da API
-        url = "http://localhost:8000/api/tarpit/list/"
+        # Se o IP não está na whitelist, consultar API
+        url = "http://localhost:8000/api/tarpit/"
         headers = {
             'Authorization': f'Token {token}',
             'Content-Type': 'application/json'
         }
         
-        country_code, city, latitude, longitude = get_geo_info(ip_address) or (None, None, None, None)
+        country_code, city, latitude, longitude = get_geo_info(ip_address) or (country_code, None, None, None)
 
         params = {
             'ip_address': ip_address,
@@ -269,65 +270,66 @@ def checar_reputacao_ip_e_inserir(ip_address, src_longitude, country_code, src_l
         api_response_time = (time.time() - start_request) * 1000
         logger.info(f"Tempo de resposta da API: {api_response_time:.3f} milisegundos")
 
-        # Checar velocidade
-        if response.status_code == 201:
-            # print(f'response: {response.json()}')
-            response_data = response.json()
-            status = response_data["status"]
-            
-
-            if status in ["blacklist", "none", "existente_blacklist"]:
-                inserir_ip_na_lista("bl_address_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
-                
-                start_time = time.time()
-                aplicar_regras(status, ip_address)
-                time_apply_bl_rules = (time.time() - start_time) * 1000
-
-                # Calcula tempo total
-                execution_time = (time.time() - start_time) * 1000
-
-                # Remove IP da tarpit no IPtables
-                deletar_ip_tarpit(ip=ip_address)
-                logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
-
-                return checagem_wl_local_time, api_response_time, execution_time, time_apply_bl_rules, 0, 0
-            
-            elif status in ["suspicious", "existente_suspect"]:
-                inserir_ip_na_lista("suspect_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
-
-                start_time = time.time()
-                # Não é necessário pois já está na Tarpit
-                # aplicar_regras(status, ip_address)
-                time_apply_suspect_rules = (time.time() - start_time) * 1000
-
-                # Calcula tempo total
-                execution_time = (time.time() - start_time) * 1000
-
-                # Remove IP da tarpit no IPtables
-                deletar_ip_tarpit(ip=ip_address)
-                logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
-
-                return checagem_wl_local_time, api_response_time, execution_time, 0, 0, time_apply_suspect_rules
-
-            elif status in ["whitelist", "existente_whitelist"]:
-                inserir_ip_na_lista("wl_address_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
-
-                start_time = time.time()
-                aplicar_regras(status, ip_address)
-                time_apply_wl_rules = (time.time() - start_time) * 1000
-
-                # Calcula tempo total
-                execution_time = (time.time() - start_time) * 1000
-                
-                # Remove IP da tarpit no IPtables
-                deletar_ip_tarpit(ip=ip_address)
-                logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
-
-                return checagem_wl_local_time, api_response_time, execution_time, 0, time_apply_wl_rules, 0
-
-        else:
+        # Se a API não responder com 201
+        if response.status_code != 201:
             logger.error(f"Erro ao enviar IP para API: {response.status_code}")
             deletar_ip_tarpit(ip=ip_address)
+            return checagem_wl_local_time, api_response_time, 0, 0, 0, 0  # Retorna valores padrão
+
+        response_data = response.json()
+        status = response_data["status"]
+
+        # Blacklist
+        if status in ["blacklist", "none", "existente_blacklist"]:
+            inserir_ip_na_lista("bl_address_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
+            
+            start_time = time.time()
+            aplicar_regras(status, ip_address)
+            time_apply_bl_rules = (time.time() - start_time) * 1000
+
+            execution_time = (time.time() - start_time) * 1000
+            deletar_ip_tarpit(ip=ip_address)
+            logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
+
+            return checagem_wl_local_time, api_response_time, execution_time, time_apply_bl_rules, 0, 0
+        
+        # Suspicious
+        elif status in ["suspicious", "existente_suspect"]:
+            inserir_ip_na_lista("suspect_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
+
+            start_time = time.time()
+            time_apply_suspect_rules = (time.time() - start_time) * 1000
+
+            execution_time = (time.time() - start_time) * 1000
+            deletar_ip_tarpit(ip=ip_address)
+            logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
+
+            return checagem_wl_local_time, api_response_time, execution_time, 0, 0, time_apply_suspect_rules
+
+        # Whitelist
+        elif status in ["whitelist", "existente_whitelist"]:
+            inserir_ip_na_lista("wl_address_local", ip_address, country_code, city, response_data, src_longitude, src_latitude)
+
+            start_time = time.time()
+            aplicar_regras(status, ip_address)
+            time_apply_wl_rules = (time.time() - start_time) * 1000
+
+            execution_time = (time.time() - start_time) * 1000
+            deletar_ip_tarpit(ip=ip_address)
+            logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
+
+            return checagem_wl_local_time, api_response_time, execution_time, 0, time_apply_wl_rules, 0
+
+        # Status desconhecido
+        else:
+            logger.error(f"Status desconhecido recebido da API: {status}")
+            deletar_ip_tarpit(ip=ip_address)
+            return checagem_wl_local_time, api_response_time, 0, 0, 0, 0
+
+    except Exception as e:
+        logger.error(f"Erro inesperado ao processar IP {ip_address}: {str(e)}")
+        deletar_ip_tarpit(ip=ip_address)
+        return 0, 0, 0, 0, 0, 0  # Retorna valores padrão em caso de erro
 
 
 # Função para inserir dados na tabela de tráfego de rede

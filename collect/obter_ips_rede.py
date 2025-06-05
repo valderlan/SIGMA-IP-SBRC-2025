@@ -6,7 +6,8 @@ import requests
 import logging
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.getcwd(), "api", ".env"))
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", "netcontrol", ".env")
+load_dotenv(dotenv_path)
 
 token = os.environ.get('token')
 
@@ -35,7 +36,7 @@ def scan_network_local(network):
     # Executa o comando nmap e captura a saída
     result = subprocess.run(['nmap', '-sn', network], capture_output=True, text=True)
 
-    url_api = "http://localhost:8000/api/whitelist/list/"
+    url_api = "http://localhost:8000/api/whitelist/"
     headers = {
         'Authorization': f'Token {token}',
         'Content-Type': 'application/json'

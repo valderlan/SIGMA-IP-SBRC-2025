@@ -36,7 +36,8 @@ def calculate_final_weights(
     """Calculates the final feature weights and saves them.
 
     This function follows the same logic as feature_analyzer.py but focuses solely on weight calculation.
-    The calculation now properly normalizes the variance before combining it with correlation.
+    The original calculation method is preserved (without normalizing variance), but with enhanced
+    visualizations and logs for better understanding of the process.
 
     Args:
         config_path (str): Path to the configuration file. Defaults to "config.json".
@@ -121,6 +122,12 @@ def calculate_final_weights(
     ).sort_values("Variance", ascending=False)
 
     logger.info("\nVariance Analysis:\n%s", variances.to_string(index=False))
+    
+    # Estatísticas das variâncias para análise
+    logger.info("   Variance statistics: min=%.6f, max=%.6f, mean=%.6f", 
+                variances["Variance"].min(), 
+                variances["Variance"].max(), 
+                variances["Variance"].mean())
 
     logger.info("9. Calculating correlations...")
     corr_matrix = df_norm.corr()
@@ -141,6 +148,12 @@ def calculate_final_weights(
     ).sort_values("Mean_Correlation", ascending=False)
 
     logger.info("\nMean Correlation Analysis:\n%s", correlations.to_string(index=False))
+    
+    # Estatísticas das correlações para análise
+    logger.info("   Correlation statistics: min=%.6f, max=%.6f, mean=%.6f", 
+                correlations["Mean_Correlation"].min(), 
+                correlations["Mean_Correlation"].max(), 
+                correlations["Mean_Correlation"].mean())
 
     logger.info("10. Calculating composite score...")
     composite_score = pd.DataFrame(
@@ -153,36 +166,18 @@ def calculate_final_weights(
         }
     )
 
-    # Normalizar a variância para o intervalo [0,1] antes de calcular a importância
-    logger.info("   Normalizing variance to [0,1] range...")
-    if composite_score["Variance"].max() > 0:  # Evitar divisão por zero
-        composite_score["Variance_Normalized"] = composite_score["Variance"] / composite_score["Variance"].max()
-    else:
-        composite_score["Variance_Normalized"] = composite_score["Variance"] * 0
-    
-    # Log das estatísticas da variância antes e depois da normalização
-    logger.info("   Variance statistics before normalization: min=%.4f, max=%.4f, mean=%.4f", 
-                composite_score["Variance"].min(), 
-                composite_score["Variance"].max(), 
-                composite_score["Variance"].mean())
-    
-    logger.info("   Variance statistics after normalization: min=%.4f, max=%.4f, mean=%.4f", 
-                composite_score["Variance_Normalized"].min(), 
-                composite_score["Variance_Normalized"].max(), 
-                composite_score["Variance_Normalized"].mean())
-
-    # Calcular o score de importância usando a variância normalizada
+    # Usando o cálculo original (sem normalização adicional da variância)
     composite_score["Importance_Score"] = (
-        composite_score["Variance_Normalized"] + composite_score["Correlation"]
+        composite_score["Variance"] + composite_score["Correlation"]
     ) / 2
     
     # Adicionar coluna de contribuição para diagnóstico
-    composite_score["Variance_Contribution"] = composite_score["Variance_Normalized"] / (
-        composite_score["Variance_Normalized"] + composite_score["Correlation"]
+    composite_score["Variance_Contribution"] = composite_score["Variance"] / (
+        composite_score["Variance"] + composite_score["Correlation"]
     ) * 100
     
     composite_score["Correlation_Contribution"] = composite_score["Correlation"] / (
-        composite_score["Variance_Normalized"] + composite_score["Correlation"]
+        composite_score["Variance"] + composite_score["Correlation"]
     ) * 100
 
     composite_score["Type"] = [
@@ -194,14 +189,36 @@ def calculate_final_weights(
     composite_score = composite_score.sort_values("Importance_Score", ascending=False)
 
     logger.info(
-        "\nImportance Score Calculations (with normalized variance):\n%s", 
-        composite_score[["Feature", "Variance", "Variance_Normalized", "Correlation", "Importance_Score", "Type"]].to_string(index=False)
+        "\nImportance Score Calculations:\n%s", 
+        composite_score[["Feature", "Variance", "Correlation", "Importance_Score", "Type"]].to_string(index=False)
     )
     
     logger.info(
         "\nContribution Analysis (how much each metric contributes to the final score):\n%s", 
         composite_score[["Feature", "Variance_Contribution", "Correlation_Contribution", "Importance_Score"]].to_string(index=False)
     )
+
+    # Análise da escala dos valores
+    logger.info("\nScale Analysis (checking if variance and correlation are on comparable scales):")
+    var_range = variances["Variance"].max() - variances["Variance"].min()
+    corr_range = correlations["Mean_Correlation"].max() - correlations["Mean_Correlation"].min()
+    
+    logger.info(f"   Variance range: [{variances['Variance'].min():.6f}, {variances['Variance'].max():.6f}], span: {var_range:.6f}")
+    logger.info(f"   Correlation range: [{correlations['Mean_Correlation'].min():.6f}, {correlations['Mean_Correlation'].max():.6f}], span: {corr_range:.6f}")
+    
+    if variances["Variance"].max() <= 0.25:
+        logger.info("   NOTE: Variance values are naturally low (max ≤ 0.25) because data was normalized to [0,1]")
+        logger.info("   This explains why no additional variance normalization is needed - scales are already comparable")
+    
+    ratio = variances["Variance"].max() / correlations["Mean_Correlation"].max()
+    logger.info(f"   Max variance / max correlation ratio: {ratio:.6f}")
+    
+    if ratio < 0.5:
+        logger.info("   Correlation dominates the importance score (variance is relatively small)")
+    elif ratio > 2.0:
+        logger.info("   Variance dominates the importance score (correlation is relatively small)")
+    else:
+        logger.info("   Variance and correlation have comparable influence on the importance score")
 
     logger.info("11. Calculating normalized weights...")
     normalized_score = (
@@ -247,32 +264,32 @@ def calculate_final_weights(
     # Gerando gráficos adicionais para visualizar a importância
     logger.info("14. Generating importance visualization plots...")
     
-    # Gráfico de barras comparando a variância bruta e normalizada
+    # Gráfico comparando variância e correlação
     plt.figure(figsize=(14, 8))
     bar_width = 0.35
     features = composite_score["Feature"]
     x = np.arange(len(features))
     
-    plt.bar(x - bar_width/2, composite_score["Variance"], bar_width, label='Variância Bruta', color='#1f77b4')
-    plt.bar(x + bar_width/2, composite_score["Variance_Normalized"], bar_width, label='Variância Normalizada', color='#ff7f0e')
+    plt.bar(x - bar_width/2, composite_score["Variance"], bar_width, label='Variância', color='#1f77b4')
+    plt.bar(x + bar_width/2, composite_score["Correlation"], bar_width, label='Correlação Média', color='#ff7f0e')
     
     plt.xlabel('Features')
     plt.ylabel('Valor')
-    plt.title('Comparação entre Variância Bruta e Normalizada')
+    plt.title('Comparação entre Variância e Correlação Média')
     plt.xticks(x, features, rotation=45, ha='right')
     plt.legend()
     plt.tight_layout()
     
-    variance_plot_path = os.path.join(output_dir, "variance_comparison.png")
-    plt.savefig(variance_plot_path)
-    logger.info(f"Variance comparison plot saved at: {variance_plot_path}")
+    comparison_plot_path = os.path.join(output_dir, "variance_correlation_comparison.png")
+    plt.savefig(comparison_plot_path)
+    logger.info(f"Variance and correlation comparison plot saved at: {comparison_plot_path}")
     plt.close()
     
     # Gráfico de barras para visualizar a contribuição da variância e correlação
     plt.figure(figsize=(14, 8))
     
     # Dados para o gráfico de barras empilhadas
-    var_contrib = composite_score["Variance_Normalized"] / 2  # Dividir por 2 para representar a média
+    var_contrib = composite_score["Variance"] / 2  # Dividir por 2 para representar a média
     corr_contrib = composite_score["Correlation"] / 2  # Dividir por 2 para representar a média
     
     plt.bar(features, var_contrib, label='Contribuição da Variância', color='#1f77b4')
@@ -303,6 +320,18 @@ def calculate_final_weights(
     weights_plot_path = os.path.join(output_dir, "final_weights.png")
     plt.savefig(weights_plot_path)
     logger.info(f"Final weights plot saved at: {weights_plot_path}")
+    plt.close()
+
+    # Gráfico de pizza para visualizar a contribuição percentual de cada feature
+    plt.figure(figsize=(12, 10))
+    plt.pie(combined_weights["Final_Weight"], labels=combined_weights["Feature"], 
+            autopct='%1.1f%%', startangle=90, shadow=True)
+    plt.axis('equal')  # Assegura que o gráfico seja desenhado como um círculo
+    plt.title('Distribuição Percentual dos Pesos Finais')
+    
+    pie_plot_path = os.path.join(output_dir, "weights_distribution_pie.png")
+    plt.savefig(pie_plot_path)
+    logger.info(f"Weights distribution pie chart saved at: {pie_plot_path}")
     plt.close()
 
     logger.info("=== WEIGHT CALCULATION COMPLETED ===")

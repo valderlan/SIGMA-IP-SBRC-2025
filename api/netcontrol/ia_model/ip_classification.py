@@ -8,13 +8,8 @@ import pandas as pd
 
 from feature_normalizer import FeatureNormalizer
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUTS_DIR = os.path.join(BASE_DIR, 'outputs')
-CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')
-IP_CLASSIFICATION_LOG_PATH = os.path.join(OUTPUTS_DIR, 'ip_classification.log')
 
-
-def setup_logging(log_file=IP_CLASSIFICATION_LOG_PATH):
+def setup_logging(log_file="outputs/ip_classification.log"):
     """Configures the logging system.
 
     Args:
@@ -34,7 +29,7 @@ def setup_logging(log_file=IP_CLASSIFICATION_LOG_PATH):
     return logging.getLogger(__name__)
 
 
-def classify_ips_and_generate_plots(config_path=CONFIG_PATH, output_dir=OUTPUTS_DIR):
+def classify_ips_and_generate_plots(config_path="config.json", output_dir="outputs"):
     """Classifies IPs using FeatureNormalizer and generates plots.
 
     This function uses FeatureNormalizer to process the dataset, classify IPs,
@@ -119,14 +114,17 @@ def classify_ips_and_generate_plots(config_path=CONFIG_PATH, output_dir=OUTPUTS_
     count = np.arange(1, len(sorted_scores) + 1)
 
     plt.figure(figsize=(10, 7))
-    plt.plot(count, sorted_scores, linewidth=2)
-    plt.xlabel("Count (sorted)")
-    plt.ylabel("Final Score")
+    plt.plot(count, sorted_scores, linewidth=4)
+    #plt.xlabel("Count (sorted)")
+    plt.xlabel("Contagem (ordenada)")
+    #plt.ylabel("Final Score")
+    plt.ylabel("Score Final")
     plt.grid(True, alpha=0.3)
 
     z = np.polyfit(count, sorted_scores, 1)
     p = np.poly1d(z)
-    plt.plot(count, p(count), "r--", alpha=0.8, label="Linear Trend")
+    #plt.plot(count, p(count), "r--", alpha=0.8, label="Linear Trend")
+    plt.plot(count, p(count), "r--", alpha=0.8, label="Tendência Linear")
     plt.legend(loc="upper left")
     plt.tight_layout()
 
@@ -147,8 +145,10 @@ def classify_ips_and_generate_plots(config_path=CONFIG_PATH, output_dir=OUTPUTS_
         else:
             patch.set_facecolor("red")
 
-    plt.xlabel("Final Score")
-    plt.ylabel("Frequency")
+    #plt.xlabel("Final Score")
+    #plt.ylabel("Frequency")
+    plt.xlabel("Score Final")
+    plt.ylabel("Frequência")
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
 
@@ -156,6 +156,167 @@ def classify_ips_and_generate_plots(config_path=CONFIG_PATH, output_dir=OUTPUTS_
     plt.savefig(histogram_path, bbox_inches="tight", dpi=300)
     plt.close()
     logger.info(f"   Histogram saved at: {histogram_path}")
+
+    # New line plot (using same data as the existing line plot)
+    logger.info("   Generating additional line plot...")
+    plt.figure(figsize=(10, 7))
+
+    # Sort scores for distribution analysis
+    sorted_scores = np.sort(scores_sum)
+    count = np.arange(1, len(sorted_scores) + 1)
+
+    plt.plot(sorted_scores, count, linewidth=4, color="black")
+
+    plt.axvspan(0, 0.2, alpha=0.2, color="#1f77b4", label="Allowlist (<0.2)")
+    plt.axvspan(0.2, 0.4, alpha=0.2, color="#808080", label="Suspicious (0.2-0.4)")
+    plt.axvspan(
+        0.4, max(sorted_scores) + 0.05, alpha=0.2, color="red", label="Blocklist (>0.4)"
+    )
+
+    #plt.xlabel("Score Value")
+    #plt.ylabel("Cumulative Count")
+    plt.xlabel("Valor do Score")
+    plt.ylabel("Contagem cumulativa")
+    plt.grid(True, alpha=0.3)
+    # plt.legend(loc="upper left")
+    # Create a smaller legend with a smaller font size
+    plt.legend(loc="lower right", fontsize=14, framealpha=0.7)
+    plt.tight_layout()
+
+    line_distribution_path = os.path.join(
+        output_dir, "score_distribution_line_cumulative.png"
+    )
+    plt.savefig(line_distribution_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    logger.info(f"   Line distribution plot saved at: {line_distribution_path}")
+
+    # New line plot with colored line segments instead of background colors
+    logger.info("   Generating improved line plot...")
+    plt.figure(figsize=(10, 7))
+
+    # Sort scores for distribution analysis
+    sorted_scores = np.sort(scores_sum)
+    count = np.arange(1, len(sorted_scores) + 1)
+
+    # Split data into classification segments based on score values
+    allowlist_mask = sorted_scores < 0.2
+    suspicious_mask = (sorted_scores >= 0.2) & (sorted_scores < 0.4)
+    blocklist_mask = sorted_scores >= 0.4
+
+    # Plot each segment with appropriate color
+    if np.any(allowlist_mask):
+        plt.plot(
+            sorted_scores[allowlist_mask],
+            count[allowlist_mask],
+            linewidth=4.0,
+            color="#1f77b4",
+            label="Allowlist (<0.2)",
+        )
+
+    if np.any(suspicious_mask):
+        plt.plot(
+            sorted_scores[suspicious_mask],
+            count[suspicious_mask],
+            linewidth=4.0,
+            color="#808080",
+            label="Suspicious (0.2-0.4)",
+        )
+
+    if np.any(blocklist_mask):
+        plt.plot(
+            sorted_scores[blocklist_mask],
+            count[blocklist_mask],
+            linewidth=4.0,
+            color="red",
+            label="Blocklist (>0.4)",
+        )
+
+    # Add grid and labels
+    #plt.xlabel("Score Value")
+    #plt.ylabel("Cumulative Count")
+    plt.xlabel("Valor do Score")
+    plt.ylabel("Contagem cumulativa")
+    plt.grid(True, alpha=0.3)
+
+    # Create a smaller legend with a smaller font size
+    plt.legend(loc="lower right", fontsize=14, framealpha=0.7)
+
+    plt.tight_layout()
+
+    line_distribution_path = os.path.join(
+        output_dir, "score_distribution_line_segments2.png"
+    )
+    plt.savefig(line_distribution_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    logger.info(f"   Line distribution plot saved at: {line_distribution_path}")
+    
+    # New line plot with colored line segments instead of background colors
+    logger.info("   Generating improved line plot...")
+    plt.figure(figsize=(10, 7))
+
+    # Sort scores for distribution analysis
+    sorted_scores = np.sort(scores_sum)
+    count = np.arange(1, len(sorted_scores) + 1)
+
+    # Split data into classification segments based on score values
+    allowlist_mask = sorted_scores < 0.2
+    suspicious_mask = (sorted_scores >= 0.2) & (sorted_scores < 0.4)
+    blocklist_mask = sorted_scores >= 0.4
+
+    # Adicionar áreas de fundo coloridas
+    plt.axvspan(0.0, 0.2, alpha=0.2, color='#1f77b4', label='Allowlist (<0.2)')
+    plt.axvspan(0.2, 0.4, alpha=0.2, color='#808080', label='Suspicious (0.2-0.4)')
+    plt.axvspan(0.4, max(sorted_scores) + 0.05, alpha=0.2, color='red', label='Blocklist (>0.4)')
+
+    # Plot each segment with appropriate color
+    if np.any(allowlist_mask):
+        plt.plot(
+            sorted_scores[allowlist_mask],
+            count[allowlist_mask],
+            linewidth=4.0,
+            color='#1f77b4',  # Azul
+        )
+
+    if np.any(suspicious_mask):
+        plt.plot(
+            sorted_scores[suspicious_mask],
+            count[suspicious_mask],
+            linewidth=4.0,
+            color='#404040',  # Cinza escuro
+        )
+
+    if np.any(blocklist_mask):
+        plt.plot(
+            sorted_scores[blocklist_mask],
+            count[blocklist_mask],
+            linewidth=4.0,
+            color='red',      # Vermelho
+        )
+
+    # Add grid and labels
+    #plt.xlabel("Score Value")
+    #plt.ylabel("Cumulative Count")
+    plt.xlabel("Valor do Score")
+    plt.ylabel("Contagem cumulativa")
+    plt.grid(True, alpha=0.3)
+
+    # Create a legend for the regions
+    handles = [
+        plt.Rectangle((0,0), 1, 1, color='#1f77b4', alpha=0.2),
+        plt.Rectangle((0,0), 1, 1, color='#808080', alpha=0.2),
+        plt.Rectangle((0,0), 1, 1, color='red', alpha=0.2)
+    ]
+    labels = ['Allowlist (<0.2)', 'Suspicious (0.2-0.4)', 'Blocklist (>0.4)']
+    plt.legend(handles, labels, loc="lower right", fontsize=14, framealpha=0.7)
+
+    plt.tight_layout()
+
+    line_distribution_path = os.path.join(
+        output_dir, "score_distribution_colored_segments.png"
+    )
+    plt.savefig(line_distribution_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    logger.info(f"   Line distribution plot saved at: {line_distribution_path}")
 
     logger.info("\n=== IP CLASSIFICATION AND PLOT GENERATION COMPLETED ===")
 

@@ -1,150 +1,160 @@
 import requests
 import os
-from dotenv import load_dotenv
 import json
 import time
 import logging
+from dotenv import load_dotenv
 
 load_dotenv()
 
-API_KEY = json.loads(os.getenv("API_KEY", "[]"))
+# Carregar chaves das variáveis de ambiente
+API_KEY_ABUSE = json.loads(os.getenv("API_KEY", "[]"))
 API_KEY_VIRUSTOTAL = json.loads(os.getenv("API_KEY_VIRUSTOTAL", "[]"))
 API_KEY_IPVOID = json.loads(os.getenv("API_KEY_IPVOID", "[]"))
 API_KEY_PULSEDIVE = json.loads(os.getenv("API_KEY_PULSEDIVE", "[]"))
 
+# Setup de logger
 logger = logging.getLogger(__name__)
 
+
 class SearchAbuse:
-# Consulta a Blacklist da Abuse
+    @staticmethod
     def buscar_dados_blacklist_abuse():
-        # Começa temporizador
         start_time = time.time()
-
         url = "https://api.abuseipdb.com/api/v2/blacklist"
-        params = {
-            'confidenceMinimum': 75,
-            'limit': 9999999
-        }
-        for key in API_KEY:
-            headers = {
-                'Key': key,
-                'Accept': 'application/json'
-            }   
-            
+        params = {'confidenceMinimum': 75, 'limit': 9999999}
+
+        for key in API_KEY_ABUSE:
+            headers = {'Key': key, 'Accept': 'application/json'}
             logger.info(f"Chave atual AbuseIPDB: {key}")
-            response = requests.get(url, headers=headers, params=params)
-            logger.info(f'Response AbuseIPDB: {response}')
 
-            if response.status_code == 200:
-                return response.json()
-            elif response.status_code == 429 or 401: # 429 é limite de requisição e 401 é falha de autenticação
-                logger.error(f"Erro {response.status_code} com a chave atual do AbuseIPDB, mudando para a proxima...")
-            else:
-                logger.error(f"Erro ao buscar dados do AbuseIPDB: {response.status_code}")
-                return None
-        
-        # Calcula o tempo de execução
-        execution_time = time.time() - start_time
-        logger.info(f"Tempo pra consultar a Blacklist do AbuseIPDB: {execution_time:.2f} segundos")
+            try:
+                response = requests.get(url, headers=headers, params=params)
+                logger.info(f"Response AbuseIPDB: {response}")
 
-    def buscar_dados_abuse(ip_tarpit):
-        url_abuse = "https://api.abuseipdb.com/api/v2/check"
-        
-        params_abuse = {'ipAddress': ip_tarpit.ip_address, 'maxAgeInDays': 15}  # Checar relatórios dos últimos 15 dias
+                if response.status_code == 200:
+                    logger.info(f"Tempo consulta Blacklist AbuseIPDB: {time.time() - start_time:.2f}s")
+                    return response.json()
+                elif response.status_code in (429, 401):
+                    logger.error(f"Erro {response.status_code} com a chave do AbuseIPDB, tentando próxima...")
+                else:
+                    logger.error(f"Erro inesperado AbuseIPDB: {response.status_code}")
+                    return None
+            except Exception as e:
+                logger.error(f"Exceção na consulta AbuseIPDB: {str(e)}")
 
-        for key in API_KEY:
-            headers_abuse = {'Key': key, 'Accept': 'application/json'}
-        
-            response_abuse = requests.get(url=url_abuse, headers=headers_abuse, params=params_abuse)
-            logger.info(f"Chave atual score AbuseIPDB: {params_abuse}")
+        logger.error("Todas as chaves do AbuseIPDB falharam.")
+        return None
 
-            if response_abuse.status_code == 200:
-                return response_abuse
-            elif response_abuse.status_code == 429 or 401: # 429 é limite de requisição e 401 é falha de autenticação
-                logger.error(f"Erro {response_abuse.status_code} com a chave atual do AbuseIPDB, mudando para a proxima...")
-            else:
-                logger.error(f"Erro ao buscar dados do AbuseIPDB: {response_abuse.status_code}")
-                return None
-            
+    @staticmethod
+    def buscar_dados_abuse(ip_address):
+        url = "https://api.abuseipdb.com/api/v2/check"
+        params = {'ipAddress': ip_address, 'maxAgeInDays': 15}
+
+        for key in API_KEY_ABUSE:
+            headers = {'Key': key, 'Accept': 'application/json'}
+            logger.info(f"Chave atual para AbuseIPDB Check: {key}")
+
+            try:
+                response = requests.get(url, headers=headers, params=params)
+                logger.info(f"Response AbuseIPDB Check: {response}")
+
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code in (429, 401):
+                    logger.error(f"Erro {response.status_code} na chave do AbuseIPDB Check, tentando próxima...")
+                else:
+                    logger.error(f"Erro inesperado AbuseIPDB Check: {response.status_code}")
+                    return None
+            except Exception as e:
+                logger.error(f"Exceção na consulta AbuseIPDB Check: {str(e)}")
+
+        logger.error("Todas as chaves do AbuseIPDB Check falharam.")
+        return None
+
 
 class SearchVirusTotal:
+    @staticmethod
     def buscar_dados_virustotal(ip_address):
-        url_virus = f'https://www.virustotal.com/api/v3/ip_addresses/{ip_address}'
+        url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip_address}'
 
         for key in API_KEY_VIRUSTOTAL:
-            headers_virus = {
-                'Accept': 'application/json', 
-                'x-apikey': key,
-            } 
-
+            headers = {'Accept': 'application/json', 'x-apikey': key}
             logger.info(f'Chave atual do VirusTotal: {key}')
 
-            response_virus = requests.get(url=url_virus, headers=headers_virus)
+            try:
+                response = requests.get(url, headers=headers)
 
-            if response_virus.status_code == 200:
-                logger.info(response_virus.json())
-                return response_virus.json()
-            elif response_virus.status_code == 429 or 401:
-                logger.error(f"Erro ao obter dados do VirusTotal: {response_virus.status_code}")
-            else:
-                logger.error(f"Erro ao buscar dados: {response_virus.status_code}")
-                return None
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code in (429, 401):
+                    logger.error(f"Erro {response.status_code} na chave do VirusTotal, tentando próxima...")
+                else:
+                    logger.error(f"Erro inesperado VirusTotal: {response.status_code}")
+                    return None
+            except Exception as e:
+                logger.error(f"Exceção na consulta VirusTotal: {str(e)}")
+
+        logger.error("Todas as chaves do VirusTotal falharam.")
+        return None
 
 
 class SearchIPVoid:
+    @staticmethod
     def buscar_dados_ipvoid(ip_address):
-        for key in API_KEY_IPVOID:
-            logger.info(f'Usando a chave do IPVoid: {key}')
-            
-            url_ipvoid = f"https://endpoint.apivoid.com/iprep/v1/pay-as-you-go/"
-            params_ipvoid = {
-                'key': key,
-                'ip': ip_address
-            }
+        url = "https://endpoint.apivoid.com/iprep/v1/pay-as-you-go/"
 
-            response_ipvoid = requests.get(url=url_ipvoid, params=params_ipvoid)
-            
-            if response_ipvoid.status_code == 200:
-                try:
-                    data = response_ipvoid.json()
+        for key in API_KEY_IPVOID:
+            params = {'key': key, 'ip': ip_address}
+            logger.info(f'Usando chave IPVoid: {key}')
+
+            try:
+                response = requests.get(url, params=params)
+
+                if response.status_code == 200:
+                    data = response.json()
                     if 'data' in data and 'report' in data['data'] and 'blacklists' in data['data']['report']:
                         return data
                     else:
-                        logging.error(f"Resposta inválida da API do IPVoid: {data}")
-                except ValueError:
-                    logging.error("Erro ao analisar a resposta JSON do IPVoid.")
-            elif response_ipvoid.status_code == 429:
-                logging.error(f"Chave do IPVoid esgotada: {key}")
-            elif response_ipvoid.status_code == 401:
-                logging.error(f"Chave do IPVoid inválida: {key}")
-            else:
-                logging.error(f"Erro ao buscar dados do IPVoid: {response_ipvoid.status_code} - {response_ipvoid.text}")
-        
-        # Retornar None caso todas as chaves falhem
-        logging.error("Todas as chaves do IPVoid falharam ou foram esgotadas.")
+                        logger.error(f"Resposta inválida IPVoid: {data}")
+                        return None
+                elif response.status_code in (429, 401):
+                    logger.error(f"Erro {response.status_code} na chave do IPVoid, tentando próxima...")
+                else:
+                    logger.error(f"Erro inesperado IPVoid: {response.status_code}")
+                    return None
+            except Exception as e:
+                logger.error(f"Exceção na consulta IPVoid: {str(e)}")
+
+        logger.error("Todas as chaves do IPVoid falharam.")
         return None
-            
+
 
 class SearchPulsedive:
+    @staticmethod
     def buscar_dados_pulsedive(ip_address):
+        url = "https://pulsedive.com/api/info.php"
+
         for key in API_KEY_PULSEDIVE:
-            url = "https://pulsedive.com/api/info.php"
             params = {
                 "key": key,
-                "pretty": 1,
-                "indicator": ip_address  
+                "indicator": ip_address,
+                "pretty": 1
             }
+            logger.info(f'Chave atual Pulsedive: {key}')
 
-            response_pulsedive = requests.get(url, params=params)
-            logger.info(f"Chave atual do Pulsedive: {key}")
-            
-            if response_pulsedive.status_code == 200:
-                data = response_pulsedive.json() 
-                return data
-            elif response_pulsedive.status_code == 429:
-                logger.error(f"Erro {response_pulsedive.status_code}: Chave da API do Pulsedive esgotada")
-            elif response_pulsedive.status_code == 401:
-                logger.error(f"Erro {response_pulsedive.status_code}: Chave da API do Pulsedive é inválida")
-            else:
-                logger.error(f"Erro ao buscar dados do Pulsedive: {response_pulsedive.status_code}")
-                return None  
+            try:
+                response = requests.get(url, params=params)
+
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code in (429, 401):
+                    logger.error(f"Erro {response.status_code} na chave do Pulsedive, tentando próxima...")
+                else:
+                    logger.error(f"Erro inesperado Pulsedive: {response.status_code}")
+                    return None
+            except Exception as e:
+                logger.error(f"Exceção na consulta Pulsedive: {str(e)}")
+
+        logger.error("Todas as chaves do Pulsedive falharam.")
+        return None

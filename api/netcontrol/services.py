@@ -71,7 +71,7 @@ def inserir_dados_no_banco(dados):
             data = Blacklist(
                 ip_address=registro['ipAddress'],
                 country_code=registro['countryCode'],
-                abuse_confidence_score=registro['abuseConfidenceScore'],
+                abuseipdb_confidence_score=registro['abuseConfidenceScore'],
                 last_reported_at=data_formatada
             )
             objetos_para_inserir.append(data)
@@ -108,7 +108,7 @@ def realizar_buscas_paralelas(obj_tarpit):
 
     # Processar as respostas e salvar no objeto
     if responses.get("abuse"):
-        dados_abuse = responses["abuse"].json().get('data', {})
+        dados_abuse = responses["abuse"].get('data', {})
         obj_tarpit.abuseipdb_confidence_score = dados_abuse.get('abuseConfidenceScore')
         obj_tarpit.last_reported_at = dados_abuse.get('lastReportedAt')
         obj_tarpit.abuseipdb_total_reports = dados_abuse.get('totalReports')
@@ -136,6 +136,9 @@ def realizar_buscas_paralelas(obj_tarpit):
         obj_tarpit.risk_recommended_pulsedive = dados_pulsedive.get('risk_recommended', 'unknown')
     else:
         obj_tarpit.risk_recommended_pulsedive = 'unknown'
+
+    logger.info(f"IPVOID_DETECTION_COUNT = {obj_tarpit.ipvoid_detection_count}")
+    logger.info(f"RISK_RECOMMENDED_PULSEDIVE = {obj_tarpit.risk_recommended_pulsedive}")
 
     return obj_tarpit
 
@@ -235,19 +238,34 @@ def filtrar_tarpit(ip_address):
         if obj_tarpit:
             logger.info(f"Iniciando filtragem do IP {obj_tarpit.ip_address}")
 
-            data = {
-                'ip_address': obj_tarpit.ip_address,
-                'abuseipdb_confidence_score': obj_tarpit.abuseipdb_confidence_score,
-                'abuseipdb_total_reports': obj_tarpit.abuseipdb_total_reports,
-                'abuseipdb_num_distinct_users': obj_tarpit.abuseipdb_num_distinct_users,
-                "ipvoid_detection_count": obj_tarpit.ipvoid_detection_count,
-                "risk_recommended_pulsedive": obj_tarpit.risk_recommended_pulsedive,
-                "virustotal_malicious": obj_tarpit.virustotal_malicious,
-                "virustotal_reputation": obj_tarpit.virustotal_reputation,
-                "virustotal_suspicious": obj_tarpit.virustotal_suspicious,
-                "virustotal_undetected": obj_tarpit.virustotal_undetected,
-                "virustotal_harmless": obj_tarpit.virustotal_harmless,
-            }
+            if obj_tarpit:
+                logger.info(f"--- Dados coletados para o IP {obj_tarpit.ip_address} ---")
+                logger.info(f"abuseipdb_confidence_score: {obj_tarpit.abuseipdb_confidence_score}")
+                logger.info(f"abuseipdb_total_reports: {obj_tarpit.abuseipdb_total_reports}")
+                logger.info(f"abuseipdb_num_distinct_users: {obj_tarpit.abuseipdb_num_distinct_users}")
+                logger.info(f"ipvoid_detection_count: {obj_tarpit.ipvoid_detection_count}")
+                logger.info(f"risk_recommended_pulsedive: {obj_tarpit.risk_recommended_pulsedive}")
+                logger.info(f"virustotal_reputation: {obj_tarpit.virustotal_reputation}")
+                logger.info(f"virustotal_harmless: {obj_tarpit.virustotal_harmless}")
+                logger.info(f"virustotal_malicious: {obj_tarpit.virustotal_malicious}")
+                logger.info(f"virustotal_suspicious: {obj_tarpit.virustotal_suspicious}")
+                logger.info(f"virustotal_undetected: {obj_tarpit.virustotal_undetected}")
+                logger.info("-------------------------------------------------------")
+
+                data = {
+                    'ip_address': obj_tarpit.ip_address,
+                    'abuseipdb_confidence_score': obj_tarpit.abuseipdb_confidence_score,
+                    'abuseipdb_total_reports': obj_tarpit.abuseipdb_total_reports,
+                    'abuseipdb_num_distinct_users': obj_tarpit.abuseipdb_num_distinct_users,
+                    "ipvoid_detection_count": obj_tarpit.ipvoid_detection_count,
+                    "risk_recommended_pulsedive": obj_tarpit.risk_recommended_pulsedive,
+                    "virustotal_malicious": obj_tarpit.virustotal_malicious,
+                    "virustotal_reputation": obj_tarpit.virustotal_reputation,
+                    "virustotal_suspicious": obj_tarpit.virustotal_suspicious,
+                    "virustotal_undetected": obj_tarpit.virustotal_undetected,
+                    "virustotal_harmless": obj_tarpit.virustotal_harmless,
+                }
+
 
             # Criando o CSV pra fazer a classificação do IP
             write_to_csv(data, CSV_FILE)

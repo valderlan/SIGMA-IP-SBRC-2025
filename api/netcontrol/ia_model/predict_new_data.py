@@ -8,11 +8,8 @@ from tensorflow.keras.models import load_model
 
 from .config.config import SCORE_COLS
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PREDICTION_LOG_PATH = os.path.join(BASE_DIR, 'outputs', 'model_prediction.log')
 
-
-def setup_logging(log_file=MODEL_PREDICTION_LOG_PATH):
+def setup_logging(log_file="outputs/prediction.log"):
     """Configures the logging system.
 
     Args:

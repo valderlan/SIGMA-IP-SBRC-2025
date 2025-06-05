@@ -6,6 +6,7 @@ import time
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
+
 from .feature_normalizer import FeatureNormalizer
 from .predict_new_data import get_available_models, predict_ip_classification
 
@@ -13,12 +14,11 @@ from .predict_new_data import get_available_models, predict_ip_classification
 # python query.py input_dataset.csv output_dataset.csv model_name
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODELS_DIR = os.path.join(BASE_DIR, 'data', 'models')
-MODEL_TIMING_RESULTS_PATH = os.path.join(BASE_DIR, 'outputs', 'model_timing_results.csv')
-MODEL_PREDICTION_LOG_PATH = os.path.join(BASE_DIR, 'outputs', 'model_prediction.log')
+DATASET_PATH = os.path.join(BASE_DIR, "datasets", "Total_test1.csv")
+OUTPUT_PATH = os.path.join(BASE_DIR, "datasets", "test_normalized.csv")
 
 
-def setup_logging(log_file=MODEL_PREDICTION_LOG_PATH):
+def setup_logging(log_file="outputs/model_prediction.log"):
     """Configures the logging system.
 
     Args:
@@ -45,13 +45,13 @@ def main():
     logger = setup_logging()
 
     # Directory where models are saved
-    models_dir = MODELS_DIR
+    models_dir = os.path.join(BASE_DIR, "data", "models")
 
     # Input and output dataset paths
-    dataset_path = os.path.join(BASE_DIR, 'datasets', 'Total_test1.csv')  # Dataset to be normalized
-    output_path = os.path.join(BASE_DIR, 'datasets', 'test_normalized.csv') # Normalized output dataset
+    dataset_path = DATASET_PATH  # Dataset to be normalized
+    output_path = OUTPUT_PATH  # Normalized output dataset
 
-    # # If command-line arguments are provided, use them
+    # If command-line arguments are provided, use them
     # if len(sys.argv) > 1:
     #     dataset_path = sys.argv[1]
     # if len(sys.argv) > 2:
@@ -146,7 +146,7 @@ def main():
     logger.info("\n" + str(sample_predictions[fastest_model].head(sample_size)))
 
     # Export results to CSV
-    results_path = MODEL_TIMING_RESULTS_PATH
+    results_path = "outputs/model_timing_results.csv"
     results_df.to_csv(results_path, index=False)
     logger.info(f"\nResults exported to: {results_path}")
 

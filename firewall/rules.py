@@ -3,7 +3,7 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", "netcontrol", ".env")
 load_dotenv(dotenv_path)
 
 # Configurações do PostgreSQL
@@ -12,11 +12,6 @@ db_name = os.environ.get('PG_DB')
 db_user = os.environ.get('PG_USER')
 db_password = os.environ.get('PG_PASSWORD')
 db_port = os.environ.get('PG_PORT')
-
-print(f"host: {db_host}, name: {db_name}, user: {db_user}, password: {db_password}, port: {db_port}")
-
-
-print(f"teste: {os.getcwd()}")
 
 def run_iptables_command(command):
     try:
