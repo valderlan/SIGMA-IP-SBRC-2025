@@ -16,6 +16,7 @@ from .predict_new_data import get_available_models, predict_ip_classification
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_PATH = os.path.join(BASE_DIR, "datasets", "Total_test1.csv")
 OUTPUT_PATH = os.path.join(BASE_DIR, "datasets", "test_normalized.csv")
+RESULTS_PATH = os.path.join(BASE_DIR, "outputs", "model_timing_results.csv")
 
 
 def setup_logging(log_file="outputs/model_prediction.log"):
@@ -146,7 +147,7 @@ def main():
     logger.info("\n" + str(sample_predictions[fastest_model].head(sample_size)))
 
     # Export results to CSV
-    results_path = "outputs/model_timing_results.csv"
+    results_path = RESULTS_PATH
     results_df.to_csv(results_path, index=False)
     logger.info(f"\nResults exported to: {results_path}")
 
