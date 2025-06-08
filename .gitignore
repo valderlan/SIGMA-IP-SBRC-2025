@@ -4,6 +4,7 @@ geoipupdate_6.1.0_linux_amd64.deb
 .env/
 *.csv
 api_outputs/
+clear_tables.py
 
 # Ignorar arquivos __pycache__ e arquivos .pyc
 /__pycache__/

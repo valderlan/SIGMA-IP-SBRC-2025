@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class SearchAbuse:
     @staticmethod
-    def buscar_dados_blacklist_abuse():
+    def buscar_blacklist_abuse():
         start_time = time.time()
         url = "https://api.abuseipdb.com/api/v2/blacklist"
         params = {'confidenceMinimum': 75, 'limit': 9999999}
@@ -37,11 +37,13 @@ class SearchAbuse:
                     return response.json()
                 elif response.status_code in (429, 401):
                     logger.error(f"Erro {response.status_code} com a chave do AbuseIPDB, tentando próxima...")
+                    continue
                 else:
                     logger.error(f"Erro inesperado AbuseIPDB: {response.status_code}")
                     return None
             except Exception as e:
                 logger.error(f"Exceção na consulta AbuseIPDB: {str(e)}")
+                continue
 
         logger.error("Todas as chaves do AbuseIPDB falharam.")
         return None
@@ -63,11 +65,13 @@ class SearchAbuse:
                     return response.json()
                 elif response.status_code in (429, 401):
                     logger.error(f"Erro {response.status_code} na chave do AbuseIPDB Check, tentando próxima...")
+                    continue
                 else:
                     logger.error(f"Erro inesperado AbuseIPDB Check: {response.status_code}")
                     return None
             except Exception as e:
                 logger.error(f"Exceção na consulta AbuseIPDB Check: {str(e)}")
+                continue
 
         logger.error("Todas as chaves do AbuseIPDB Check falharam.")
         return None
@@ -89,11 +93,13 @@ class SearchVirusTotal:
                     return response.json()
                 elif response.status_code in (429, 401):
                     logger.error(f"Erro {response.status_code} na chave do VirusTotal, tentando próxima...")
+                    continue
                 else:
                     logger.error(f"Erro inesperado VirusTotal: {response.status_code}")
                     return None
             except Exception as e:
                 logger.error(f"Exceção na consulta VirusTotal: {str(e)}")
+                continue
 
         logger.error("Todas as chaves do VirusTotal falharam.")
         return None
@@ -120,11 +126,13 @@ class SearchIPVoid:
                         return None
                 elif response.status_code in (429, 401):
                     logger.error(f"Erro {response.status_code} na chave do IPVoid, tentando próxima...")
+                    continue
                 else:
                     logger.error(f"Erro inesperado IPVoid: {response.status_code}")
                     return None
             except Exception as e:
                 logger.error(f"Exceção na consulta IPVoid: {str(e)}")
+                continue
 
         logger.error("Todas as chaves do IPVoid falharam.")
         return None
@@ -150,11 +158,13 @@ class SearchPulsedive:
                     return response.json()
                 elif response.status_code in (429, 401):
                     logger.error(f"Erro {response.status_code} na chave do Pulsedive, tentando próxima...")
+                    continue
                 else:
                     logger.error(f"Erro inesperado Pulsedive: {response.status_code}")
                     return None
             except Exception as e:
                 logger.error(f"Exceção na consulta Pulsedive: {str(e)}")
+                continue
 
         logger.error("Todas as chaves do Pulsedive falharam.")
         return None
