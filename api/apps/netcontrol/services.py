@@ -11,7 +11,7 @@ import csv
 import ast
 import logging
 import pandas as pd
-from netcontrol.ia_model.query import main as classificar_ip
+from apps.netcontrol.ia_model.query import main as classificar_ip
 
 load_dotenv()
 

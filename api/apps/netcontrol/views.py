@@ -5,11 +5,11 @@ from rest_framework import status
 from rest_framework.permissions import IsAdminUser
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
-from netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
-from netcontrol.pagination import GenericPagination
-from netcontrol.serializers import (BlacklistSerializer, WhitelistSerializer, TarpitSerializer, SuspectSerializer)
-from netcontrol.filters import (BlacklistFilter, WhitelistFilter, TarpitFilter, SuspectFilter)
-from netcontrol.services import filtrar_tarpit
+from apps.netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
+from apps.netcontrol.pagination import GenericPagination
+from apps.netcontrol.serializers import (BlacklistSerializer, WhitelistSerializer, TarpitSerializer, SuspectSerializer)
+from apps.netcontrol.filters import (BlacklistFilter, WhitelistFilter, TarpitFilter, SuspectFilter)
+from apps.netcontrol.services import filtrar_tarpit
 import time
 import logging
 

@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from netcontrol.models import Blacklist, Tarpit, Whitelist, Suspect
+from apps.netcontrol.models import Blacklist, Tarpit, Whitelist, Suspect
 
 class BlacklistSerializer(serializers.ModelSerializer):
     class Meta:

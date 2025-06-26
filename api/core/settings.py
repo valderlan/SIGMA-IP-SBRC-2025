@@ -16,8 +16,8 @@ import json
 from dotenv import load_dotenv
 import json
 
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", "netcontrol", ".env")
-load_dotenv(dotenv_path)
+DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(DOTENV_PATH)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -48,8 +48,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'django_filters',
-    'netcontrol',
-    'user_app',
+    'apps.netcontrol',
+    'apps.user_app',
     'drf_spectacular',
     'django_crontab',
 ]
@@ -64,7 +64,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'api_settings.urls'
+ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
@@ -82,7 +82,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'api_settings.wsgi.application'
+WSGI_APPLICATION = 'core.wsgi.application'
 
 
 # Database

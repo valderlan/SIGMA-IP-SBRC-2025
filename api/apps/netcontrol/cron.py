@@ -8,7 +8,8 @@ import psycopg2
 import os
 import logging
 
-load_dotenv()
+DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
+load_dotenv(DOTENV_PATH)
 
 # Configurações do banco local
 db_host = os.environ.get('PG_HOST')

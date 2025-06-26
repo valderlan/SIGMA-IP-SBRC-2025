@@ -1,6 +1,6 @@
 import django_filters
 from rest_framework import filters
-from netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
+from apps.netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
 
 
 class BlacklistFilter(django_filters.FilterSet):
