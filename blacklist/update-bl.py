@@ -6,9 +6,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 script_dir = os.path.dirname(os.path.abspath(__file__))         
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", "netcontrol", ".env")      
+DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", "api", ".env")      
 
-load_dotenv(dotenv_path)
+load_dotenv(DOTENV_PATH)
 
 token = os.environ.get('token')
 

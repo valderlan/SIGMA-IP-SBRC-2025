@@ -14,7 +14,7 @@ from blacklist_rules import apply_blacklist_rules
 import csv
 import logging
 
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", "netcontrol", ".env")
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
 load_dotenv(dotenv_path)
 
 token = os.environ.get('token')
