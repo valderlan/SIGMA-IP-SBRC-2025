@@ -1,25 +1,24 @@
-from .externals import SearchAbuse
-from .services import inserir_dados_no_banco, filtrar_tarpit
-from .models import Blacklist, Whitelist, Tarpit
-from django.utils.timezone import now
-from datetime import timedelta
-from dotenv import load_dotenv
-import psycopg2
-import os
 import logging
+import os
+from datetime import timedelta
 
-DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
-load_dotenv(DOTENV_PATH)
+import psycopg2
+from django.utils.timezone import now
 
-# Configurações do banco local
-db_host = os.environ.get('PG_HOST')
-db_name = os.environ.get('PG_DB_LOCAL')
-db_user = os.environ.get('PG_USER')
-db_password = os.environ.get('PG_PASSWORD')
-db_port = os.environ.get('PG_PORT')
+from api.core.settings import (
+    POSTGRES_DB,
+    POSTGRES_HOST,
+    POSTGRES_PASSWORD,
+    POSTGRES_PORT,
+    POSTGRES_USER,
+)
+
+from .externals import SearchAbuse
+from .models import Blacklist, Tarpit, Whitelist
+from .services import filtrar_tarpit, inserir_dados_no_banco
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CRON_LOGS_PATH = os.path.join(BASE_DIR, 'api_outputs', 'cron.log')
+CRON_LOGS_PATH = os.path.join(BASE_DIR, "api_outputs", "cron.log")
 
 
 # Função para logging
@@ -63,24 +62,26 @@ def verificar_ips_antigos_wl():
     ip_addresses = []
 
     for obj_whitelist in queryset:
-        tarpit_objs.append(Tarpit(
-            ip_address=obj_whitelist.ip_address,
-            country_code=obj_whitelist.country_code,
-            city=obj_whitelist.city,
-            abuseipdb_confidence_score=obj_whitelist.abuseipdb_confidence_score,
-            abuseipdb_total_reports=obj_whitelist.abuseipdb_total_reports,
-            abuseipdb_num_distinct_users=obj_whitelist.abuseipdb_num_distinct_users,
-            virustotal_reputation=obj_whitelist.virustotal_reputation,
-            virustotal_harmless=obj_whitelist.virustotal_harmless,
-            virustotal_malicious=obj_whitelist.virustotal_malicious,
-            virustotal_suspicious=obj_whitelist.virustotal_suspicious,
-            virustotal_undetected=obj_whitelist.virustotal_undetected,
-            ipvoid_detection_count=obj_whitelist.ipvoid_detection_count,
-            risk_recommended_pulsedive=obj_whitelist.risk_recommended_pulsedive,
-            last_reported_at=obj_whitelist.last_reported_at,
-            src_longitude=obj_whitelist.src_longitude,
-            src_latitude=obj_whitelist.src_latitude,
-        ))
+        tarpit_objs.append(
+            Tarpit(
+                ip_address=obj_whitelist.ip_address,
+                country_code=obj_whitelist.country_code,
+                city=obj_whitelist.city,
+                abuseipdb_confidence_score=obj_whitelist.abuseipdb_confidence_score,
+                abuseipdb_total_reports=obj_whitelist.abuseipdb_total_reports,
+                abuseipdb_num_distinct_users=obj_whitelist.abuseipdb_num_distinct_users,
+                virustotal_reputation=obj_whitelist.virustotal_reputation,
+                virustotal_harmless=obj_whitelist.virustotal_harmless,
+                virustotal_malicious=obj_whitelist.virustotal_malicious,
+                virustotal_suspicious=obj_whitelist.virustotal_suspicious,
+                virustotal_undetected=obj_whitelist.virustotal_undetected,
+                ipvoid_detection_count=obj_whitelist.ipvoid_detection_count,
+                risk_recommended_pulsedive=obj_whitelist.risk_recommended_pulsedive,
+                last_reported_at=obj_whitelist.last_reported_at,
+                src_longitude=obj_whitelist.src_longitude,
+                src_latitude=obj_whitelist.src_latitude,
+            )
+        )
         ip_addresses.append(obj_whitelist.ip_address)
 
     try:
@@ -88,9 +89,15 @@ def verificar_ips_antigos_wl():
         Tarpit.objects.bulk_create(tarpit_objs)
         logger.info(f"{len(tarpit_objs)} IPs inseridos na tarpit.")
 
-        # Deleta todos da wl_address_local com um único DELETE 
+        # Deleta todos da wl_address_local com um único DELETE
         if ip_addresses:
-            conn = psycopg2.connect(host=db_host, dbname=db_name, user=db_user, password=db_password, port=db_port)
+            conn = psycopg2.connect(
+                host=POSTGRES_HOST,
+                dbname=POSTGRES_DB,
+                user=POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                port=POSTGRES_PORT,
+            )
             cur = conn.cursor()
             cur.execute("SET TIMEZONE TO 'America/Fortaleza';")
 
@@ -122,24 +129,26 @@ def verificar_ips_antigos_blacklist():
     ip_addresses = []
 
     for obj_blacklist in queryset:
-        tarpit_objs.append(Tarpit(
-            ip_address=obj_blacklist.ip_address,
-            country_code=obj_blacklist.country_code,
-            city=obj_blacklist.city,
-            abuseipdb_confidence_score=obj_blacklist.abuseipdb_confidence_score,
-            abuseipdb_total_reports=obj_blacklist.abuseipdb_total_reports,
-            abuseipdb_num_distinct_users=obj_blacklist.abuseipdb_num_distinct_users,
-            virustotal_reputation=obj_blacklist.virustotal_reputation,
-            virustotal_harmless=obj_blacklist.virustotal_harmless,
-            virustotal_malicious=obj_blacklist.virustotal_malicious,
-            virustotal_suspicious=obj_blacklist.virustotal_suspicious,
-            virustotal_undetected=obj_blacklist.virustotal_undetected,
-            ipvoid_detection_count=obj_blacklist.ipvoid_detection_count,
-            risk_recommended_pulsedive=obj_blacklist.risk_recommended_pulsedive,
-            last_reported_at=obj_blacklist.last_reported_at,
-            src_longitude=obj_blacklist.src_longitude,
-            src_latitude=obj_blacklist.src_latitude,
-        ))
+        tarpit_objs.append(
+            Tarpit(
+                ip_address=obj_blacklist.ip_address,
+                country_code=obj_blacklist.country_code,
+                city=obj_blacklist.city,
+                abuseipdb_confidence_score=obj_blacklist.abuseipdb_confidence_score,
+                abuseipdb_total_reports=obj_blacklist.abuseipdb_total_reports,
+                abuseipdb_num_distinct_users=obj_blacklist.abuseipdb_num_distinct_users,
+                virustotal_reputation=obj_blacklist.virustotal_reputation,
+                virustotal_harmless=obj_blacklist.virustotal_harmless,
+                virustotal_malicious=obj_blacklist.virustotal_malicious,
+                virustotal_suspicious=obj_blacklist.virustotal_suspicious,
+                virustotal_undetected=obj_blacklist.virustotal_undetected,
+                ipvoid_detection_count=obj_blacklist.ipvoid_detection_count,
+                risk_recommended_pulsedive=obj_blacklist.risk_recommended_pulsedive,
+                last_reported_at=obj_blacklist.last_reported_at,
+                src_longitude=obj_blacklist.src_longitude,
+                src_latitude=obj_blacklist.src_latitude,
+            )
+        )
         ip_addresses.append(obj_blacklist.ip_address)
 
     try:
@@ -150,8 +159,11 @@ def verificar_ips_antigos_blacklist():
         # Deleta da bl_address_local em uma única query
         if ip_addresses:
             conn = psycopg2.connect(
-                host=db_host, dbname=db_name, user=db_user,
-                password=db_password, port=db_port
+                host=POSTGRES_HOST,
+                dbname=POSTGRES_DB,
+                user=POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                port=POSTGRES_PORT,
             )
             cur = conn.cursor()
             cur.execute("SET TIMEZONE TO 'America/Fortaleza';")
@@ -170,4 +182,3 @@ def verificar_ips_antigos_blacklist():
 
     except Exception as e:
         logger.error(f"Erro ao processar atualização da blacklist: {e}")
-

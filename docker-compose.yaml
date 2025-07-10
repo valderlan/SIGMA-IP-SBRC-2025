@@ -1,37 +1,38 @@
 services:
   firewallenvironment:
     container_name: firewallenvironment
+    env_file:
+      - ./api/.env.docker
     build:
       context: .
     ports:
     - "8001:8001"
     depends_on:
       - postgres
-    environment:
-      TZ: America/Sao_Paulo
-    env_file:
-      - ./api/.env.docker
 
   postgres:
     image: postgres:17
+    env_file:
+      - ./api/.env.docker
     restart: "always"
+    environment:
+      TZ: "America/Sao_Paulo"
+      PGTZ: "America/Sao_Paulo"
     ports:
       - "5433:5432"
     volumes:
       - ./docker/postgres/data:/var/lib/postgresql/data
       - ./docker/init-db:/docker-entrypoint-initdb.d
-    environment:
-      POSTGRES_USER: ${PG_USER}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
-      POSTGRES_DB: ${PG_DB}
-      TZ: America/Sao_Paulo
-      PGTZ: America/Sao_Paulo
-    env_file:
-      - ./.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d firewall"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   grafana:
     image: grafana/grafana-oss:10.0.12
     restart: "always"
+    user: "root"
     environment:
       GF_INSTALL_PLUGINS: "grafana-clock-panel, grafana-simple-json-datasource"
       GF_PANELS_ENABLE_ALPHA: true
@@ -39,6 +40,9 @@ services:
       - "3000:3000"
     volumes:
       - ./docker/grafana:/var/lib/grafana
+    logging:
+      driver: "none"
+
 
 networks:
   default:

@@ -14,8 +14,9 @@ WORKDIR /django-app/
 
 COPY pyproject.toml uv.lock ./
 COPY ./api ./src
+COPY ./api/.env.docker ./src/.env
 # COPY run.py .
 
 RUN uv sync --locked
 
-# CMD ["uv", "run", "run.py"]
+CMD ["sh", "-c", "uv run src/manage.py makemigrations && uv run src/manage.py migrate && uv run src/manage.py runserver 0.0.0.0:8001"]
