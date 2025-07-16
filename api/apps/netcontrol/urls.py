@@ -1,6 +1,5 @@
-from django.urls import path, include
+from django.urls import path
 from .views import BlacklistViewSet, WhitelistViewSet, TarpitViewSet, SuspectViewSet
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
 urlpatterns = [
@@ -19,9 +18,4 @@ urlpatterns = [
     # urls para suspect
     path('suspect/', SuspectViewSet.as_view({'get': 'list', 'post': 'create'})),
     path('suspect/<str:ip_address>/', SuspectViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
-
-    # SWAGGER
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-
 ]
