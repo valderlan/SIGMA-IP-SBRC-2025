@@ -1,3 +1,5 @@
+\connect sigma_local;
+
 -- SQL para a criação das tabelas do banco local -- 
 CREATE TABLE network_traffic (
     id SERIAL PRIMARY KEY,
