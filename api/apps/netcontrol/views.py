@@ -1,9 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework import filters
-from rest_framework import status
 from rest_framework.permissions import IsAdminUser
-from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
 from apps.netcontrol.pagination import GenericPagination
