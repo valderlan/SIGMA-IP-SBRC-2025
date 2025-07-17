@@ -80,7 +80,7 @@ class FeatureNormalizer:
         df_norm = self.normalize_with_defined_ranges(df_selected)
 
         base_name = os.path.splitext(os.path.basename(dataset_path))[0]
-        normalized_path = f"{base_name}_normalizado.csv"
+        normalized_path = os.path.join(BASE_DIR, "datasets", f"{base_name}_normalizado.csv")
 
         df_norm_to_save = df_norm.copy()
         if "ip_address" in df.columns:

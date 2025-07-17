@@ -301,7 +301,7 @@ def filtrar_tarpit(ip_address):
                 return data
         
         else:
-            logger.warning(f"Não foi possível checar a reputação do IP com as APIs externas.")
+            logger.warning("Não foi possível checar a reputação do IP com as APIs externas.")
             logger.info(f"Movendo o IP {ip_address} para a Blacklist.")
 
             Blacklist.objects.create(ip_address=ip_address)

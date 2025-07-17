@@ -1,4 +1,3 @@
-from django.contrib.auth.models import User
 from rest_framework import serializers
 from apps.netcontrol.models import Blacklist, Tarpit, Whitelist, Suspect
 
