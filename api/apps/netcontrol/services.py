@@ -6,12 +6,8 @@ from .models import Blacklist, Whitelist, Tarpit, Suspect
 from .externals import SearchAbuse, SearchVirusTotal, SearchIPVoid, SearchPulsedive
 from concurrent.futures import ThreadPoolExecutor
 import json
-import time
-import csv
-import ast
 import logging
-import pandas as pd
-from apps.netcontrol.ia_model.query import main as classificar_ip
+from apps.netcontrol.ia_model.ip_prediction import IPClassificationPredictor
 
 load_dotenv()
 
@@ -23,6 +19,10 @@ CSV_RESULTS_FILE = os.path.join(
     BASE_DIR, "ia_model", "outputs", "model_timing_results.csv"
 )
 API_LOGS_PATH = os.path.join(BASE_DIR, "api_outputs", "sigma_api.log")
+
+MODEL_NAME = "Decision Tree"
+MODELS_DIR = os.path.join(BASE_DIR, "ia_model", "data", "models")
+SCALER_PARAMS_FILE = os.path.join(BASE_DIR, "ia_model", "scaler_params.pkl")
 
 
 def setup_logging(log_file=API_LOGS_PATH):
@@ -197,45 +197,10 @@ def verificar_ip_no_banco(obj_tarpit, tabela, status):
     return None
 
 
-def write_to_csv(data, csv_file):
-    with open(csv_file, "w") as file:
-        writer = csv.writer(file)
-        writer.writerow(data.keys())
-        writer.writerow(data.values())
-
-
-def get_class_distribution(csv_path):
-    logger = logging.getLogger(__name__)
-
-    df = pd.read_csv(csv_path)
-
-    # Filtra a linha onde a coluna "Model" é o modelo que melhor se enquadra (tempo e acurácia)
-    row = df[df["Model"] == "Decision Tree"]
-
-    if row.empty:
-        logger.error("Modelo 'Decision Tree' não encontrado.")
-        return None
-
-    # Pega a string do dicionário de distribuição de classes
-    class_dist_str = row.iloc[0]["Class Distribution"]
-
-    try:
-        class_dist_dict = ast.literal_eval(class_dist_str)
-        logger.info(f"Distribuição de classes do Decision Tree: {class_dist_dict}")
-        # Retorna a classe mais comum
-        return max(class_dist_dict, key=class_dist_dict.get)
-    except Exception as e:
-        logger.error(f"Erro ao converter a distribuição: {e}")
-        return None
-
-
 def filtrar_tarpit(ip_address):
     logger = setup_logging()
 
     try:
-        # Começa temporizador
-        start_time = time.time()
-
         # Pega o objeto da tarpit pelo IP
         obj_tarpit = Tarpit.objects.get(ip_address=ip_address)
 
@@ -246,13 +211,9 @@ def filtrar_tarpit(ip_address):
             (Whitelist, "existente_whitelist"),
         ]:
             verificacao = verificar_ip_no_banco(obj_tarpit, tabela, status)
-            execution_time = (time.time() - start_time) * 1000
 
             if verificacao:
                 return verificacao
-
-        # Contagem do tempo de todas as requisições
-        start_request = time.time()
 
         # Executando buscas paralelas para atualizar obj_tarpit
         obj_tarpit = realizar_buscas_paralelas(obj_tarpit)
@@ -306,17 +267,11 @@ def filtrar_tarpit(ip_address):
                     "virustotal_harmless": obj_tarpit.virustotal_harmless,
                 }
 
-            # Criando o CSV pra fazer a classificação do IP
-            write_to_csv(data, CSV_FILE)
-
-            # Classificação do modelo
-            classificar_ip()
-
-            # Obtendo a resposta do modelo
-            classification = get_class_distribution(CSV_RESULTS_FILE).lower()
-            logger.info(
-                f"Classificação do modelo para IP {obj_tarpit.ip_address}: {classification}"
+            predictor = IPClassificationPredictor(
+                MODELS_DIR, SCALER_PARAMS_FILE, MODEL_NAME
             )
+
+            results = predictor.predict_classification(data)
 
             # Preenche os dados completos antes da salvar
             data.update(
@@ -331,16 +286,23 @@ def filtrar_tarpit(ip_address):
 
             obj_tarpit.delete()
 
-            # Salvando na tabela correspondente
+            classification = list(results.values())[0]["classification"]
+            print(classification)
+
             model = {
-                "blacklist": Blacklist,
+                "denylist": Blacklist,
                 "suspicious": Suspect,
-                "whitelist": Whitelist,
+                "allowlist": Whitelist,
             }.get(classification)
 
             if model:
                 model.objects.create(**data)
-                data["status"] = classification
+                if classification == "allowlist":
+                    data["status"] = "whitelist"
+                elif classification == "denylist":
+                    data["status"] == "blacklist"
+                elif classification == "suspicious":
+                    data["status"] == "suspect"
                 return data
 
         else:
