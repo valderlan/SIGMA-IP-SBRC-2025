@@ -1,7 +1,6 @@
 import requests
 import os
 import json
-import time
 import logging
 from dotenv import load_dotenv
 
@@ -20,20 +19,17 @@ logger = logging.getLogger(__name__)
 class SearchAbuse:
     @staticmethod
     def buscar_blacklist_abuse():
-        start_time = time.time()
         url = "https://api.abuseipdb.com/api/v2/blacklist"
         params = {'confidenceMinimum': 75, 'limit': 9999999}
 
         for key in API_KEY_ABUSE:
             headers = {'Key': key, 'Accept': 'application/json'}
-            logger.info(f"Chave atual AbuseIPDB: {key}")
 
             try:
                 response = requests.get(url, headers=headers, params=params)
                 logger.info(f"Response AbuseIPDB: {response}")
 
                 if response.status_code == 200:
-                    logger.info(f"Tempo consulta Blacklist AbuseIPDB: {time.time() - start_time:.2f}s")
                     return response.json()
                 elif response.status_code in (429, 401):
                     logger.error(f"Erro {response.status_code} com a chave do AbuseIPDB, tentando próxima...")
@@ -55,7 +51,6 @@ class SearchAbuse:
 
         for key in API_KEY_ABUSE:
             headers = {'Key': key, 'Accept': 'application/json'}
-            logger.info(f"Chave atual para AbuseIPDB Check: {key}")
 
             try:
                 response = requests.get(url, headers=headers, params=params)
@@ -84,7 +79,6 @@ class SearchVirusTotal:
 
         for key in API_KEY_VIRUSTOTAL:
             headers = {'Accept': 'application/json', 'x-apikey': key}
-            logger.info(f'Chave atual do VirusTotal: {key}')
 
             try:
                 response = requests.get(url, headers=headers)
@@ -112,7 +106,6 @@ class SearchIPVoid:
 
         for key in API_KEY_IPVOID:
             params = {'key': key, 'ip': ip_address}
-            logger.info(f'Usando chave IPVoid: {key}')
 
             try:
                 response = requests.get(url, params=params)
@@ -149,7 +142,6 @@ class SearchPulsedive:
                 "indicator": ip_address,
                 "pretty": 1
             }
-            logger.info(f'Chave atual Pulsedive: {key}')
 
             try:
                 response = requests.get(url, params=params)

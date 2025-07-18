@@ -247,9 +247,7 @@ def filtrar_tarpit(ip_address):
         ]:
             verificacao = verificar_ip_no_banco(obj_tarpit, tabela, status)
             execution_time = (time.time() - start_time) * 1000
-            logger.info(
-                f"Tempo para checar IP {obj_tarpit.ip_address} na {tabela.__name__}: {execution_time:.3f} milisegundos"
-            )
+
             if verificacao:
                 return verificacao
 
@@ -355,12 +353,6 @@ def filtrar_tarpit(ip_address):
 
             # Deleta o objeto da tarpit
             Tarpit.objects.filter(ip_address=ip_address).delete()
-
-            # Calcula o tempo para inserção na blacklist
-            execution_time = (time.time() - start_request) * 1000
-            logger.info(
-                f"Tempo para inserir IP {ip_address} na Blacklist: {execution_time:.3f} milisegundos."
-            )
 
             return {"status": "blacklist"}
 

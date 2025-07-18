@@ -1,4 +1,3 @@
-import csv
 import datetime
 import ipaddress
 import json
@@ -61,31 +60,6 @@ protocol_mapping = {int(k): v for k, v in mappings["protocol_mapping"].items()}
 service_mapping = {int(k): v for k, v in mappings["service_mapping"].items()}
 
 
-# Cabeçalho do CSV
-header = [
-    "src_ip",
-    "dst_ip",
-    "src_tempo_checagem_bl_local",
-    "src_tempo_checagem_wl_local",
-    "src_tempo_checagem_suspect_local",
-    "src_tempo_resposta_api",
-    "src_tempo_checagem_api",
-    "src_tempo_aplicar_regras_blacklist",
-    "src_tempo_aplicar_regras_whitelist",
-    "src_tempo_aplicar_regras_suspect",
-    "dst_tempo_checagem_bl_local",
-    "dst_tempo_checagem_wl_local",
-    "dst_tempo_checagem_suspect_local",
-    "dst_tempo_resposta_api",
-    "dst_tempo_checagem_api",
-    "dst_tempo_aplicar_regras_blacklist",
-    "dst_tempo_aplicar_regras_whitelist",
-    "dst_tempo_aplicar_regras_suspect",
-    "tempo_inserir_network_traffic",
-    "tempo_deteccao_conexao",
-]
-
-
 # Função para logging
 def setup_logging(log_file=COLLECT_LOG_FILE):
     """
@@ -105,17 +79,6 @@ def setup_logging(log_file=COLLECT_LOG_FILE):
         handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
     )
     return logging.getLogger(__name__)
-
-
-# Função para escrever no CSV
-def write_to_csv(data):
-    # Se o arquivo não existir, cria o arquivo e escreve o cabeçalho
-    file_exists = os.path.exists(CSV_FILE)
-    with open(CSV_FILE, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(header)  # Escreve o cabeçalho
-        writer.writerow(data)
 
 
 # Função para obter as informações de protocolo
@@ -156,48 +119,21 @@ def is_private_ip(ip):
 
 # Checa se o IP está na wl_address_local
 def ip_existe_na_wl_address_local(ip_address):
-    # Começa temporizador
-    start_time = time.time()
-
     cur.execute("SELECT 1 FROM wl_address_local WHERE ip_address = %s;", (ip_address,))
 
-    # Calcula o tempo de execução
-    execution_time = (time.time() - start_time) * 1000
-    logger.info(
-        f"Tempo de checagem do IP {ip_address} na wl_address_local: {execution_time:.3f} milisegundos"
-    )
-
-    return execution_time, cur.fetchone() is not None
+    return cur.fetchone() is not None
 
 
 def ip_existe_na_bl_address_local(ip_address):
-    # Começa o temporizador
-    start_check_blacklist = time.time()
-
     cur.execute("SELECT 1 FROM bl_address_local WHERE ip_address = %s;", (ip_address,))
 
-    # Calcula o tempo de execução
-    execution_check_blacklist = (time.time() - start_check_blacklist) * 1000
-    logger.info(
-        f"Tempo de checagem do IP {ip_address} na bl_address_local: {execution_check_blacklist:.3f} milisegundos"
-    )
-
-    return execution_check_blacklist, cur.fetchone() is not None
+    return cur.fetchone() is not None
 
 
 def ip_existe_na_suspect_local(ip_address):
-    # Começa o temporizador
-    start_check_suspect = time.time()
-
     cur.execute("SELECT 1 FROM suspect_local WHERE ip_address = %s;", (ip_address,))
 
-    # Calcula o tempo de execução
-    suspect_check_time = (time.time() - start_check_suspect) * 1000
-    logger.info(
-        f"Tempo de checagem do IP {ip_address} na suspect_local: {suspect_check_time:.3f} milisegundos"
-    )
-
-    return suspect_check_time, cur.fetchone() is not None
+    return cur.fetchone() is not None
 
 
 def inserir_ip_na_lista(
@@ -257,16 +193,10 @@ def checar_reputacao_ip_e_inserir(
 ):
     try:
         # Verificar se o IP está na wl_address_local do banco local
-        checagem_wl_local_time, ip_existe_wl_local = ip_existe_na_wl_address_local(
-            ip_address
-        )
 
-        if ip_existe_wl_local:
+        if ip_existe_na_wl_address_local(ip_address):
             logger.info(f"IP {ip_address} está na whitelist local, acesso liberado.")
-            return checagem_wl_local_time, 0, 0, 0, 0, 0
-
-        # Começa temporizador
-        start_time = time.time()
+            return 0
 
         # Degradar o IP para limitar sua conexão
         apply_tarpit_rules(ip=ip_address)
@@ -305,14 +235,7 @@ def checar_reputacao_ip_e_inserir(
         if response.status_code != 201:
             logger.error(f"Erro ao enviar IP para API: {response.status_code}")
             deletar_ip_tarpit(ip=ip_address)
-            return (
-                checagem_wl_local_time,
-                api_response_time,
-                0,
-                0,
-                0,
-                0,
-            )  # Retorna valores padrão
+            return api_response_time
 
         response_data = response.json()
         status = response_data["status"]
@@ -329,22 +252,10 @@ def checar_reputacao_ip_e_inserir(
                 src_latitude,
             )
 
-            start_time = time.time()
             aplicar_regras(status, ip_address)
-            time_apply_bl_rules = (time.time() - start_time) * 1000
-
-            execution_time = (time.time() - start_time) * 1000
             deletar_ip_tarpit(ip=ip_address)
-            logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
 
-            return (
-                checagem_wl_local_time,
-                api_response_time,
-                execution_time,
-                time_apply_bl_rules,
-                0,
-                0,
-            )
+            return api_response_time
 
         # Suspicious
         elif status in ["suspicious", "existente_suspect"]:
@@ -358,21 +269,9 @@ def checar_reputacao_ip_e_inserir(
                 src_latitude,
             )
 
-            start_time = time.time()
-            time_apply_suspect_rules = (time.time() - start_time) * 1000
-
-            execution_time = (time.time() - start_time) * 1000
             deletar_ip_tarpit(ip=ip_address)
-            logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
 
-            return (
-                checagem_wl_local_time,
-                api_response_time,
-                execution_time,
-                0,
-                0,
-                time_apply_suspect_rules,
-            )
+            return api_response_time
 
         # Whitelist
         elif status in ["whitelist", "existente_whitelist"]:
@@ -386,33 +285,21 @@ def checar_reputacao_ip_e_inserir(
                 src_latitude,
             )
 
-            start_time = time.time()
             aplicar_regras(status, ip_address)
-            time_apply_wl_rules = (time.time() - start_time) * 1000
-
-            execution_time = (time.time() - start_time) * 1000
             deletar_ip_tarpit(ip=ip_address)
-            logger.info(f"Tempo total de execução: {execution_time:.3f} milisegundos")
 
-            return (
-                checagem_wl_local_time,
-                api_response_time,
-                execution_time,
-                0,
-                time_apply_wl_rules,
-                0,
-            )
+            return api_response_time
 
         # Status desconhecido
         else:
             logger.error(f"Status desconhecido recebido da API: {status}")
             deletar_ip_tarpit(ip=ip_address)
-            return checagem_wl_local_time, api_response_time, 0, 0, 0, 0
+            return api_response_time
 
     except Exception as e:
         logger.error(f"Erro inesperado ao processar IP {ip_address}: {str(e)}")
         deletar_ip_tarpit(ip=ip_address)
-        return 0, 0, 0, 0, 0, 0  # Retorna valores padrão em caso de erro
+        return 0  # Retorna valores padrão em caso de erro
 
 
 # Função para inserir dados na tabela de tráfego de rede
@@ -435,9 +322,6 @@ def insert_data(
     connection_time,
 ):
     try:
-        # Começa temporizador
-        start_time = time.time()
-
         timestamp = datetime.datetime.now()
         query = """
         INSERT INTO network_traffic (timestamp, src_ip, dst_ip, protocol_name, src_service, dst_service, src_country_code, src_city, src_latitude, src_longitude, dst_country_code, dst_city, dst_latitude, dst_longitude, src_port, dst_port, connection_time)
@@ -465,14 +349,10 @@ def insert_data(
                 connection_time,
             ),
         )
-        # Calcula o tempo de execução
-        insert_time = (time.time() - start_time) * 1000
-        logger.info(
-            f"Tempo pra inserir os dados na network-traffic: {insert_time:.3f} milisegundos"
-        )
+
         conn.commit()
 
-        return insert_time
+        return
 
     except psycopg2.IntegrityError:
         # Se já existe uma conexão igual, ignorar o erro
@@ -534,36 +414,22 @@ def handle_packet(packet):
         # src_ip_iptables_time, src_ip_iptables_is_blacklisted = checar_blacklist_ip_tables(src_ip)
         # dst_ip_iptables_time, dst_ip_iptables_is_blacklisted = checar_blacklist_ip_tables(dst_ip)
 
-        src_checagem_bl_local_time, src_is_blacklisted = ip_existe_na_bl_address_local(
-            src_ip
-        )
-        dst_checagem_bl_local_time, dst_is_blacklisted = ip_existe_na_bl_address_local(
-            dst_ip
-        )
-
-        src_checagem_suspect_local_time, src_is_suspect = ip_existe_na_suspect_local(
-            src_ip
-        )
-        dst_checagem_suspect_local_time, dst_is_suspect = ip_existe_na_suspect_local(
-            dst_ip
-        )
-
-        # Checagem do IP de origem e destino na blacklist do iptables (caso esteja lá, nem insere na network-traffic)
-        if src_is_blacklisted:
+        # Checagem do IP de origem e destino na blacklist (caso esteja lá, nem insere na network-traffic)
+        if ip_existe_na_bl_address_local(src_ip):
             logger.info(f"O IP de origem {src_ip} está na bl_address_local")
             pass
-        elif dst_is_blacklisted:
+        elif ip_existe_na_bl_address_local(dst_ip):
             logger.info(f"O IP de destino {dst_ip} está na bl_address_local")
             pass
-        elif src_is_suspect:
+        elif ip_existe_na_suspect_local(src_ip):
             logger.info(f"O IP de origem {src_ip} está na suspect_local")
             pass
-        elif dst_is_suspect:
+        elif ip_existe_na_suspect_local(dst_ip):
             logger.info(f"O IP de destino {dst_ip} está na suspect_local")
             pass
         else:
             # Chama a função insert_data
-            insert_time = insert_data(
+            insert_data(
                 src_ip,
                 dst_ip,
                 protocol_name,
@@ -589,52 +455,21 @@ def handle_packet(packet):
             )
 
             # Verificar e inserir o IP na tp_address_local ou bl_address_local se necessário
-            (
-                src_checagem_wl_local_time,
-                src_request_api_time,
-                src_total_execution_time,
-                src_time_apply_bl_rules,
-                src_time_apply_wl_rules,
-                src_time_apply_suspect_rules,
-            ) = checar_reputacao_ip_e_inserir(
+            src_api_response_time = checar_reputacao_ip_e_inserir(
                 src_ip, src_lon, src_country_code, src_lat, token
             )
-            (
-                dst_checagem_wl_local_time,
-                dst_request_api_time,
-                dst_total_execution_time,
-                dst_time_apply_bl_rules,
-                dst_time_apply_wl_rules,
-                dst_time_apply_suspect_rules,
-            ) = checar_reputacao_ip_e_inserir(
+            dst_api_response_time = checar_reputacao_ip_e_inserir(
                 dst_ip, dst_lon, dst_country_code, dst_lat, token
             )
 
-            deletar_da_network_traffic(src_ip, dst_ip)
+            logger.info(
+                f"Tempo de checar o IP {src_ip} na API: {src_api_response_time} milisegundos"
+            )
+            logger.info(
+                f"Tempo de checar o IP {dst_ip} na API: {dst_api_response_time} milisegundos"
+            )
 
-            data = [
-                src_ip,
-                dst_ip,
-                src_checagem_bl_local_time,
-                src_checagem_wl_local_time,
-                src_checagem_suspect_local_time,
-                src_request_api_time,
-                src_total_execution_time,
-                src_time_apply_bl_rules,
-                src_time_apply_wl_rules,
-                src_time_apply_suspect_rules,
-                dst_checagem_bl_local_time,
-                dst_checagem_wl_local_time,
-                dst_checagem_suspect_local_time,
-                dst_request_api_time,
-                dst_total_execution_time,
-                dst_time_apply_bl_rules,
-                dst_time_apply_wl_rules,
-                dst_time_apply_suspect_rules,
-                insert_time,
-                detection_time,
-            ]
-            write_to_csv(data)
+            deletar_da_network_traffic(src_ip, dst_ip)
 
 
 if __name__ == "__main__":
