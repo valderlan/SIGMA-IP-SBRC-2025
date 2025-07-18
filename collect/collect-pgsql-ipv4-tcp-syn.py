@@ -274,7 +274,7 @@ def checar_reputacao_ip_e_inserir(
         start_request = time.time()
 
         # Se o IP não está na whitelist, consultar API
-        url = "http://localhost:8000/api/tarpit/"
+        url = "http://localhost:8001/api/tarpit/"
         headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/json",

@@ -5,14 +5,25 @@ from rest_framework.permissions import IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
 from apps.netcontrol.pagination import GenericPagination
-from apps.netcontrol.serializers import (BlacklistSerializer, WhitelistSerializer, TarpitSerializer, SuspectSerializer)
-from apps.netcontrol.filters import (BlacklistFilter, WhitelistFilter, TarpitFilter, SuspectFilter)
+from apps.netcontrol.serializers import (
+    BlacklistSerializer,
+    WhitelistSerializer,
+    TarpitSerializer,
+    SuspectSerializer,
+)
+from apps.netcontrol.filters import (
+    BlacklistFilter,
+    WhitelistFilter,
+    TarpitFilter,
+    SuspectFilter,
+)
 from apps.netcontrol.services import filtrar_tarpit
 from drf_spectacular.utils import extend_schema_view, extend_schema
 import time
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 @extend_schema_view(
     create=extend_schema(
@@ -41,14 +52,14 @@ logger = logging.getLogger(__name__)
     ),
 )
 class BlacklistViewSet(viewsets.ModelViewSet):
-    queryset = Blacklist.objects.all().order_by('id')
+    queryset = Blacklist.objects.all().order_by("id")
     serializer_class = BlacklistSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['ip_address', 'country_code', 'city', 'timestamp_added']
+    search_fields = ["ip_address", "country_code", "city", "timestamp_added"]
     filterset_class = BlacklistFilter
     pagination_class = GenericPagination
-    http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+    http_method_names = ["get", "post", "put", "patch", "delete"]
     lookup_field = "ip_address"
 
 
@@ -79,14 +90,14 @@ class BlacklistViewSet(viewsets.ModelViewSet):
     ),
 )
 class WhitelistViewSet(viewsets.ModelViewSet):
-    queryset = Whitelist.objects.all().order_by('id')
+    queryset = Whitelist.objects.all().order_by("id")
     serializer_class = WhitelistSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['ip_address', 'timestamp_added']
+    search_fields = ["ip_address", "timestamp_added"]
     filterset_class = WhitelistFilter
     pagination_class = GenericPagination
-    http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+    http_method_names = ["get", "post", "put", "patch", "delete"]
     lookup_field = "ip_address"
 
 
@@ -117,15 +128,15 @@ class WhitelistViewSet(viewsets.ModelViewSet):
     ),
 )
 class TarpitViewSet(viewsets.ModelViewSet):
-    queryset = Tarpit.objects.all().order_by('id')
+    queryset = Tarpit.objects.all().order_by("id")
     serializer_class = TarpitSerializer
-    lookup_field = 'ip_address'
+    lookup_field = "ip_address"
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['ip_address', 'country_code', 'abuseipdb_confidence_score']
+    search_fields = ["ip_address", "country_code", "abuseipdb_confidence_score"]
     filterset_class = TarpitFilter
     pagination_class = GenericPagination
-    http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+    http_method_names = ["get", "post", "put", "patch", "delete"]
     lookup_field = "ip_address"
 
     def create(self, request, *args, **kwargs):
@@ -134,7 +145,7 @@ class TarpitViewSet(viewsets.ModelViewSet):
 
         super().create(request, *args, **kwargs)
 
-        ip_address = request.data.get('ip_address')  # obtém o IP enviado
+        ip_address = request.data.get("ip_address")  # obtém o IP enviado
         logger.info(f"\nIP recebido: {ip_address}")
 
         # Chama o serviço de reputação
@@ -148,11 +159,13 @@ class TarpitViewSet(viewsets.ModelViewSet):
 
         # Calcula o tempo de execução. Espera o resultado da requisição p/ contabilizar.
         execution_time = (time.time() - start_time) * 1000
-        logger.info(f"Tempo de tratar a requisição na API: {execution_time:.3f} milisegundos")
-        
+        logger.info(
+            f"Tempo de tratar a requisição na API: {execution_time:.3f} milisegundos"
+        )
+
         # Retorna a reputação e o status
         return Response(data, status=201)
-    
+
 
 @extend_schema_view(
     create=extend_schema(
@@ -181,13 +194,12 @@ class TarpitViewSet(viewsets.ModelViewSet):
     ),
 )
 class SuspectViewSet(viewsets.ModelViewSet):
-    queryset = Suspect.objects.all().order_by('id')
+    queryset = Suspect.objects.all().order_by("id")
     serializer_class = SuspectSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['ip_address', 'timestamp_added']
+    search_fields = ["ip_address", "timestamp_added"]
     filterset_class = SuspectFilter
     pagination_class = GenericPagination
-    http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+    http_method_names = ["get", "post", "put", "patch", "delete"]
     lookup_field = "ip_address"
-

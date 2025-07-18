@@ -159,7 +159,7 @@ REST_FRAMEWORK = {
 
 # SWAGGER
 SPECTACULAR_SETTINGS = {
-    "TITLE": "NetControl API",
+    "TITLE": "SIGMA-IP API",
     "DESCRIPTION": "API do firewall",
     "VERSION": "1.0.0",
     "SWAGGER_UI_SETTINGS": {

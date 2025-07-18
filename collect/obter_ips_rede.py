@@ -39,7 +39,7 @@ def scan_network_local(network):
     # Executa o comando nmap e captura a saída
     result = subprocess.run(["nmap", "-sn", network], capture_output=True, text=True)
 
-    url_api = "http://localhost:8000/api/whitelist/"
+    url_api = "http://localhost:8001/api/whitelist/"
     headers = {"Authorization": f"Token {token}", "Content-Type": "application/json"}
 
     # Verifica se o comando foi bem-sucedido

@@ -3,8 +3,10 @@ geoipupdate_6.1.0_linux_amd64.deb
 .env
 .env/
 *.csv
+*.log
 api_outputs/
 clear_tables.py
+.env.docker
 
 # Ignorar arquivos __pycache__ e arquivos .pyc
 /__pycache__/
@@ -29,9 +31,6 @@ __pycache__/
 docker/grafana/
 docker/postgres/
 
-# Ignorar o CSV gerado (cada um tem o seu)
-*.csv
-
 # IA
 .env-sigma
 __pycache__/
@@ -48,4 +47,3 @@ data/
 datasets/
 outputs/
 weights/
-.env.docker
