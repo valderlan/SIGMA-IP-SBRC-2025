@@ -17,7 +17,7 @@ from apps.netcontrol.filters import (
     TarpitFilter,
     SuspectFilter,
 )
-from apps.netcontrol.services import filtrar_tarpit
+from apps.netcontrol.services import filter_and_classify_ip
 from drf_spectacular.utils import extend_schema_view, extend_schema
 import time
 import logging
@@ -149,7 +149,7 @@ class TarpitViewSet(viewsets.ModelViewSet):
         logger.info(f"\nIP recebido: {ip_address}")
 
         # Chama o serviço de reputação
-        data = filtrar_tarpit(ip_address)
+        data = filter_and_classify_ip(ip_address)
 
         if not data or "status" not in data:
             logger.error("Erro: Resposta inválida ou sem status")

@@ -39,18 +39,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Construir o caminho absoluto para o arquivo JSON
 MAPPINGS_PATH = os.path.join(BASE_DIR, "mappings.json")
 
-# Escreve o CSV no visualizer
-VISUALIZER_DIR = os.path.join(BASE_DIR, "..", "visualizer")
-
 # Arquivo de logs para a collect
 COLLECT_LOG_FILE = os.path.join(BASE_DIR, "collect_outputs", "collect.log")
-
-# Arquivo CSV contendo as temporizações
-CSV_FILE = os.path.join(VISUALIZER_DIR, "execution_times.csv")
-
-# Garantir que o diretório visualizer existe
-if not os.path.exists(VISUALIZER_DIR):
-    os.makedirs(VISUALIZER_DIR)
 
 # Carregar mapeamentos de protocolo e serviço a partir de um arquivo JSON
 with open(MAPPINGS_PATH, "r") as f:
@@ -118,25 +108,25 @@ def is_private_ip(ip):
 
 
 # Checa se o IP está na wl_address_local
-def ip_existe_na_wl_address_local(ip_address):
+def ip_exists_in_wl_address_local(ip_address):
     cur.execute("SELECT 1 FROM wl_address_local WHERE ip_address = %s;", (ip_address,))
 
     return cur.fetchone() is not None
 
 
-def ip_existe_na_bl_address_local(ip_address):
+def ip_exists_in_bl_address_local(ip_address):
     cur.execute("SELECT 1 FROM bl_address_local WHERE ip_address = %s;", (ip_address,))
 
     return cur.fetchone() is not None
 
 
-def ip_existe_na_suspect_local(ip_address):
+def ip_exists_in_suspect_local(ip_address):
     cur.execute("SELECT 1 FROM suspect_local WHERE ip_address = %s;", (ip_address,))
 
     return cur.fetchone() is not None
 
 
-def inserir_ip_na_lista(
+def insert_ip_into_table(
     tabela, ip_address, country_code, city, response_data, src_longitude, src_latitude
 ):
     query = f"""
@@ -179,7 +169,7 @@ def inserir_ip_na_lista(
     logger.info(f"Dados do IP {ip_address} inseridos na tabela {tabela} com sucesso")
 
 
-def aplicar_regras(status, ip_address):
+def apply_iptables_rules(status, ip_address):
     if status in ["blacklist", "existente_blacklist"]:
         apply_blacklist_rules(ip=ip_address)
     elif status in ["whitelist", "existente_whitelist"]:
@@ -194,7 +184,7 @@ def checar_reputacao_ip_e_inserir(
     try:
         # Verificar se o IP está na wl_address_local do banco local
 
-        if ip_existe_na_wl_address_local(ip_address):
+        if ip_exists_in_wl_address_local(ip_address):
             logger.info(f"IP {ip_address} está na whitelist local, acesso liberado.")
             return 0
 
@@ -235,14 +225,13 @@ def checar_reputacao_ip_e_inserir(
         if response.status_code != 201:
             logger.error(f"Erro ao enviar IP para API: {response.status_code}")
             deletar_ip_tarpit(ip=ip_address)
-            return api_response_time
-
+            return None
         response_data = response.json()
         status = response_data["status"]
 
         # Blacklist
         if status in ["blacklist", "none", "existente_blacklist"]:
-            inserir_ip_na_lista(
+            insert_ip_into_table(
                 "bl_address_local",
                 ip_address,
                 country_code,
@@ -252,14 +241,14 @@ def checar_reputacao_ip_e_inserir(
                 src_latitude,
             )
 
-            aplicar_regras(status, ip_address)
+            apply_iptables_rules(status, ip_address)
             deletar_ip_tarpit(ip=ip_address)
 
             return api_response_time
 
         # Suspicious
         elif status in ["suspicious", "existente_suspect"]:
-            inserir_ip_na_lista(
+            insert_ip_into_table(
                 "suspect_local",
                 ip_address,
                 country_code,
@@ -275,7 +264,7 @@ def checar_reputacao_ip_e_inserir(
 
         # Whitelist
         elif status in ["whitelist", "existente_whitelist"]:
-            inserir_ip_na_lista(
+            insert_ip_into_table(
                 "wl_address_local",
                 ip_address,
                 country_code,
@@ -285,7 +274,7 @@ def checar_reputacao_ip_e_inserir(
                 src_latitude,
             )
 
-            aplicar_regras(status, ip_address)
+            apply_iptables_rules(status, ip_address)
             deletar_ip_tarpit(ip=ip_address)
 
             return api_response_time
@@ -299,7 +288,7 @@ def checar_reputacao_ip_e_inserir(
     except Exception as e:
         logger.error(f"Erro inesperado ao processar IP {ip_address}: {str(e)}")
         deletar_ip_tarpit(ip=ip_address)
-        return 0  # Retorna valores padrão em caso de erro
+        return None  # Retorna None em caso de erro
 
 
 # Função para inserir dados na tabela de tráfego de rede
@@ -363,7 +352,7 @@ def insert_data(
 
 
 # Deleta os objetos da network-traffic depois de serem enviados para a API
-def deletar_da_network_traffic(src_ip, dst_ip):
+def delete_from_network_traffic(src_ip, dst_ip):
     try:
         query = """
         DELETE FROM network_traffic 
@@ -415,16 +404,16 @@ def handle_packet(packet):
         # dst_ip_iptables_time, dst_ip_iptables_is_blacklisted = checar_blacklist_ip_tables(dst_ip)
 
         # Checagem do IP de origem e destino na blacklist (caso esteja lá, nem insere na network-traffic)
-        if ip_existe_na_bl_address_local(src_ip):
+        if ip_exists_in_bl_address_local(src_ip):
             logger.info(f"O IP de origem {src_ip} está na bl_address_local")
             pass
-        elif ip_existe_na_bl_address_local(dst_ip):
+        elif ip_exists_in_bl_address_local(dst_ip):
             logger.info(f"O IP de destino {dst_ip} está na bl_address_local")
             pass
-        elif ip_existe_na_suspect_local(src_ip):
+        elif ip_exists_in_suspect_local(src_ip):
             logger.info(f"O IP de origem {src_ip} está na suspect_local")
             pass
-        elif ip_existe_na_suspect_local(dst_ip):
+        elif ip_exists_in_suspect_local(dst_ip):
             logger.info(f"O IP de destino {dst_ip} está na suspect_local")
             pass
         else:
@@ -462,19 +451,20 @@ def handle_packet(packet):
                 dst_ip, dst_lon, dst_country_code, dst_lat, token
             )
 
-            logger.info(
-                f"Tempo de checar o IP {src_ip} na API: {src_api_response_time} milisegundos"
-            )
-            logger.info(
-                f"Tempo de checar o IP {dst_ip} na API: {dst_api_response_time} milisegundos"
-            )
+            if src_api_response_time is not None:
+                logger.info(
+                    f"Tempo de checar o IP {src_ip} na API: {src_api_response_time} milisegundos"
+                )
 
-            deletar_da_network_traffic(src_ip, dst_ip)
+            if dst_api_response_time is not None:
+                logger.info(
+                    f"Tempo de checar o IP {dst_ip} na API: {dst_api_response_time} milisegundos"
+                )
+
+            delete_from_network_traffic(src_ip, dst_ip)
 
 
 if __name__ == "__main__":
-    # Criar banco local ao rodar o collect
-    # possivelmente rodar para setar as chains
     logger = setup_logging()
     print("Monitorando tráfego de rede...")
     sniff(prn=handle_packet, filter="tcp", store=0)

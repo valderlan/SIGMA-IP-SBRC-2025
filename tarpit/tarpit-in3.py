@@ -38,7 +38,7 @@ def ip_ja_existe_na_tp(ip_address):
     conexao.close()
     return existe
 
-def ip_existe_na_bl_local_cache(ip_address):
+def ip_exists_in_bl_local_cache(ip_address):
     conexao = psycopg2.connect(dbname=db_name, user=db_user, password=db_password, host=db_host)
     cursor = conexao.cursor()
     cursor.execute("SELECT 1 FROM bl_local_cache WHERE ip_address = %s;", (ip_address,))
@@ -47,7 +47,7 @@ def ip_existe_na_bl_local_cache(ip_address):
     conexao.close()
     return existe
 
-def ip_existe_na_bl_address_local(ip_address):
+def ip_exists_in_bl_address_local(ip_address):
     conexao = psycopg2.connect(dbname=db_name, user=db_user, password=db_password, host=db_host)
     cursor = conexao.cursor()
     cursor.execute("SELECT 1 FROM bl_address_local WHERE ip_address = %s;", (ip_address,))
@@ -118,8 +118,8 @@ def inserir_dados_no_postgresql(dados, src_longitude, src_latitude):
 def main():
     ips_para_checar = obter_ips_para_checar()
     for ip, country_code, city, longitude, latitude in ips_para_checar:
-        if ip_existe_na_bl_local_cache(ip):
-            if not ip_existe_na_bl_address_local(ip):
+        if ip_exists_in_bl_local_cache(ip):
+            if not ip_exists_in_bl_address_local(ip):
                 inserir_na_bl_address_local(ip, country_code, city, longitude, latitude)
             else:
                 print(f"IP {ip} já existe na tabela bl_address_local, pulando inserção.")

@@ -1,7 +1,6 @@
-from django.db import models
-from django.db.models import IntegerField, CharField, FloatField, DateTimeField
+from django.db.models import IntegerField, CharField, FloatField, DateTimeField, Model
 
-class Whitelist(models.Model):
+class Whitelist(Model):
     ip_address = CharField(max_length=45, unique=True)
     country_code = CharField(max_length=3, null=True)
     city = CharField(max_length=255, null=True)
@@ -27,7 +26,7 @@ class Whitelist(models.Model):
         return self.ip_address
 
 
-class Tarpit(models.Model):
+class Tarpit(Model):
     ip_address = CharField(max_length=45, unique=True)
     country_code = CharField(max_length=3, null=True)
     city = CharField(max_length=255, null=True)
@@ -53,7 +52,7 @@ class Tarpit(models.Model):
         return self.ip_address
 
 
-class Blacklist(models.Model):
+class Blacklist(Model):
     ip_address = CharField(max_length=45, unique=True)
     country_code = CharField(max_length=3, null=True)
     city = CharField(max_length=255, null=True)
@@ -78,7 +77,7 @@ class Blacklist(models.Model):
     def __str__(self):
         return self.ip_address
     
-class Suspect(models.Model):
+class Suspect(Model):
     ip_address = CharField(max_length=45, unique=True)
     country_code = CharField(max_length=3, null=True)
     city = CharField(max_length=255, null=True)

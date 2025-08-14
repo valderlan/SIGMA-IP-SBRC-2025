@@ -35,7 +35,7 @@ def setup_logging():
     return logging.getLogger(__name__)
 
 
-def scan_network_local(network):
+def scan_local_network(network):
     # Executa o comando nmap e captura a saída
     result = subprocess.run(["nmap", "-sn", network], capture_output=True, text=True)
 
@@ -101,4 +101,4 @@ def scan_network_local(network):
 if __name__ == "__main__":
     logger = setup_logging()
     faixa = input("Digite sua faixa: ")
-    scan_network_local(faixa)
+    scan_local_network(faixa)

@@ -6,8 +6,12 @@ class BlacklistFilter(FilterSet):
     ip_address = CharFilter(field_name="ip_address", lookup_expr="iexact")
     country_code = CharFilter(field_name="country_code", lookup_expr="iexact")
     city = CharFilter(field_name="city", lookup_expr="iexact")
-    abuseipdb_confidence_score__gte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="gte")
-    abuseipdb_confidence_score__lte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="lte")
+    abuseipdb_confidence_score__gte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="gte"
+    )
+    abuseipdb_confidence_score__lte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="lte"
+    )
     last_reported_at__gte = DateTimeFilter(
         field_name="last_reported_at", lookup_expr="gte"
     )
@@ -37,8 +41,12 @@ class WhitelistFilter(FilterSet):
     ip_address = CharFilter(field_name="ip_address", lookup_expr="iexact")
     country_code = CharFilter(field_name="country_code", lookup_expr="iexact")
     city = CharFilter(field_name="city", lookup_expr="iexact")
-    abuseipdb_confidence_score__gte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="gte")
-    abuseipdb_confidence_score__lte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="lte")
+    abuseipdb_confidence_score__gte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="gte"
+    )
+    abuseipdb_confidence_score__lte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="lte"
+    )
     last_reported_at__gte = DateTimeFilter(
         field_name="last_reported_at", lookup_expr="gte"
     )
@@ -68,8 +76,12 @@ class TarpitFilter(FilterSet):
     ip_address = CharFilter(field_name="ip_address", lookup_expr="iexact")
     country_code = CharFilter(field_name="country_code", lookup_expr="iexact")
     city = CharFilter(field_name="city", lookup_expr="iexact")
-    abuseipdb_confidence_score__gte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="gte")
-    abuseipdb_confidence_score__lte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="lte")
+    abuseipdb_confidence_score__gte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="gte"
+    )
+    abuseipdb_confidence_score__lte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="lte"
+    )
     last_reported_at__gte = DateTimeFilter(
         field_name="last_reported_at", lookup_expr="gte"
     )
@@ -99,8 +111,12 @@ class SuspectFilter(FilterSet):
     ip_address = CharFilter(field_name="ip_address", lookup_expr="iexact")
     country_code = CharFilter(field_name="country_code", lookup_expr="iexact")
     city = CharFilter(field_name="city", lookup_expr="iexact")
-    abuseipdb_confidence_score__gte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="gte")
-    abuseipdb_confidence_score__lte = NumberFilter(field_name="abuseipdb_confidence_score", lookup_expr="lte")
+    abuseipdb_confidence_score__gte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="gte"
+    )
+    abuseipdb_confidence_score__lte = NumberFilter(
+        field_name="abuseipdb_confidence_score", lookup_expr="lte"
+    )
     last_reported_at__gte = DateTimeFilter(
         field_name="last_reported_at", lookup_expr="gte"
     )

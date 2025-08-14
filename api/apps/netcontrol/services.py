@@ -5,19 +5,12 @@ from django.db import IntegrityError
 from .models import Blacklist, Whitelist, Tarpit, Suspect
 from .externals import SearchAbuse, SearchVirusTotal, SearchIPVoid, SearchPulsedive
 from concurrent.futures import ThreadPoolExecutor
-import json
 import logging
 from apps.netcontrol.ia_model.ip_prediction import IPClassificationPredictor
 
 load_dotenv()
 
-API_KEY = json.loads(os.getenv("API_KEY", "[]"))
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_FILE = os.path.join(BASE_DIR, "ia_model", "datasets", "Total_test1.csv")
-CSV_RESULTS_FILE = os.path.join(
-    BASE_DIR, "ia_model", "outputs", "model_timing_results.csv"
-)
 API_LOGS_PATH = os.path.join(BASE_DIR, "api_outputs", "sigma_api.log")
 
 MODEL_NAME = "Decision Tree"
@@ -45,7 +38,7 @@ def setup_logging(log_file=API_LOGS_PATH):
     return logging.getLogger(__name__)
 
 
-def ip_ja_existe(ip_address):
+def ip_exists_in_blacklist(ip_address):
     logger = logging.getLogger(__name__)
 
     logger.info(f"Verificando se o IP {ip_address} já existe no banco de dados.")
@@ -58,7 +51,7 @@ def ip_ja_existe(ip_address):
         return False
 
 
-def inserir_dados_no_banco(dados):
+def insert_new_blacklist_entries(dados):
     logger = logging.getLogger(__name__)
 
     # Lista pra inserir vários objetos na blacklist em uma única conexão com o banco
@@ -71,7 +64,7 @@ def inserir_dados_no_banco(dados):
 
         ip_address = registro["ipAddress"]
 
-        if not ip_ja_existe(ip_address):
+        if not ip_exists_in_blacklist(ip_address):
             data = Blacklist(
                 ip_address=registro["ipAddress"],
                 country_code=registro["countryCode"],
@@ -92,19 +85,19 @@ def inserir_dados_no_banco(dados):
             logger.error(f"Erro de integridade ao tentar inserir os dados: {e}")
 
 
-def realizar_buscas_paralelas(obj_tarpit):
+def fetch_and_update_ip_reputation_data(obj_tarpit):
     logger = logging.getLogger(__name__)
 
     with ThreadPoolExecutor() as executor:
         # Faz as requisições para as APIs paralelamente
         futures = {
-            "abuse": executor.submit(SearchAbuse.buscar_dados_abuse, obj_tarpit),
+            "abuse": executor.submit(SearchAbuse.get_abuseipdb_report, obj_tarpit),
             "virustotal": executor.submit(
-                SearchVirusTotal.buscar_dados_virustotal, obj_tarpit
+                SearchVirusTotal.get_virustotal_report, obj_tarpit
             ),
-            "ipvoid": executor.submit(SearchIPVoid.buscar_dados_ipvoid, obj_tarpit),
+            "ipvoid": executor.submit(SearchIPVoid.get_ipvoid_report, obj_tarpit),
             "pulsedive": executor.submit(
-                SearchPulsedive.buscar_dados_pulsedive, obj_tarpit
+                SearchPulsedive.get_pulsedive_report, obj_tarpit
             ),
         }
 
@@ -159,7 +152,7 @@ def realizar_buscas_paralelas(obj_tarpit):
     return obj_tarpit
 
 
-def verificar_ip_no_banco(obj_tarpit, tabela, status):
+def check_existing_ip_entry(obj_tarpit, tabela, status):
     """
     Verifica se o IP está na Blacklist, Whitelist ou Suspect da API.
     Se estiver, remove da Tarpit e retorna os detalhes do IP.
@@ -197,7 +190,7 @@ def verificar_ip_no_banco(obj_tarpit, tabela, status):
     return None
 
 
-def filtrar_tarpit(ip_address):
+def filter_and_classify_ip(ip_address):
     logger = setup_logging()
 
     try:
@@ -210,13 +203,13 @@ def filtrar_tarpit(ip_address):
             (Suspect, "existente_suspect"),
             (Whitelist, "existente_whitelist"),
         ]:
-            verificacao = verificar_ip_no_banco(obj_tarpit, tabela, status)
+            verificacao = check_existing_ip_entry(obj_tarpit, tabela, status)
 
             if verificacao:
                 return verificacao
 
         # Executando buscas paralelas para atualizar obj_tarpit
-        obj_tarpit = realizar_buscas_paralelas(obj_tarpit)
+        obj_tarpit = fetch_and_update_ip_reputation_data(obj_tarpit)
 
         if obj_tarpit:
             logger.info(f"Iniciando filtragem do IP {obj_tarpit.ip_address}")

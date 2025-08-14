@@ -15,7 +15,7 @@ from api.core.settings import (
 
 from .externals import SearchAbuse
 from .models import Blacklist, Tarpit, Whitelist
-from .services import filtrar_tarpit, inserir_dados_no_banco
+from .services import filter_and_classify_ip, insert_new_blacklist_entries
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CRON_LOGS_PATH = os.path.join(BASE_DIR, "api_outputs", "cron.log")
@@ -46,13 +46,13 @@ def setup_logging(log_file=CRON_LOGS_PATH):
 def update_blacklist():
     logger = setup_logging()
     logger.info("Buscando dados para atualizar a Blacklist...")
-    dados = SearchAbuse.buscar_blacklist_abuse()
+    dados = SearchAbuse.search_abuse_blacklist()
     if dados:
-        inserir_dados_no_banco(dados)
+        insert_new_blacklist_entries(dados)
 
 
 # Função para verificar IPs antigos da Whitelist
-def verificar_ips_antigos_wl():
+def reprocess_old_whitelist_ips():
     logger = setup_logging()
 
     tres_dias_atras = now() - timedelta(days=3)
@@ -112,14 +112,14 @@ def verificar_ips_antigos_wl():
 
         # Refiltra os IPs
         for ip in ip_addresses:
-            filtrar_tarpit(ip)
+            filter_and_classify_ip(ip)
 
     except Exception as e:
         logger.error(f"Erro ao processar atualização da whitelist: {e}")
 
 
 # Função pra verificar IPs antigos da blacklist
-def verificar_ips_antigos_blacklist():
+def reprocess_old_blacklist_ips():
     logger = setup_logging()
 
     tres_dias_atras = now() - timedelta(days=3)
@@ -178,7 +178,7 @@ def verificar_ips_antigos_blacklist():
 
         # Refaz filtragem
         for ip in ip_addresses:
-            filtrar_tarpit(ip)
+            filter_and_classify_ip(ip)
 
     except Exception as e:
         logger.error(f"Erro ao processar atualização da blacklist: {e}")

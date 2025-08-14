@@ -31,28 +31,36 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = json.loads(os.getenv("ALLOWED_HOSTS", "[]"))
 
 
 # Application definition
 
-INSTALLED_APPS = [
+DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+]
+
+THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "django_filters",
-    "apps.netcontrol",
-    "apps.user_app",
     "drf_spectacular",
     "django_crontab",
 ]
+
+LOCAL_APPS = [
+    "apps.netcontrol",
+    "apps.user_app",
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -172,11 +180,11 @@ SPECTACULAR_SETTINGS = {
 CRONJOBS = [
     (
         "0 12 1 * *",
-        "netcontrol.cron.verificar_ips_antigos_wl",
+        "netcontrol.cron.reprocess_old_whitelist_ips",
     ),  # Vai executar no dia 1 de cada mês ao meio-dia
     (
         "0 12 */7 * *",
-        "netcontrol.cron.verificar_ips_antigos_blacklist",
+        "netcontrol.cron.reprocess_old_blacklist_ips",
     ),  # Vai executar a cada 7 dias ao meio-dia
     (
         "0 12 */3 * *",
