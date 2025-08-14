@@ -42,52 +42,52 @@ def setup_logging(log_file=CRON_LOGS_PATH):
     return logging.getLogger(__name__)
 
 
-# Função pra requisitar novos dados pra blacklist
+# Função pra requisitar novos IPs pra blacklist
 def update_blacklist():
     logger = setup_logging()
-    logger.info("Buscando dados para atualizar a Blacklist...")
-    dados = SearchAbuse.search_abuse_blacklist()
-    if dados:
-        insert_new_blacklist_entries(dados)
+    logger.info("Buscando IPs para atualizar a Blacklist...")
+    blacklist_records = SearchAbuse.search_abuse_blacklist()
+    if blacklist_records:
+        insert_new_blacklist_entries(blacklist_records)
 
 
 # Função para verificar IPs antigos da Whitelist
 def reprocess_old_whitelist_ips():
     logger = setup_logging()
 
-    tres_dias_atras = now() - timedelta(days=3)
-    queryset = Whitelist.objects.filter(timestamp_added__lt=tres_dias_atras)
+    three_days_ago = now() - timedelta(days=3)
+    queryset = Whitelist.objects.filter(timestamp_added__lt=three_days_ago)
 
-    tarpit_objs = []
+    tarpit_records = []
     ip_addresses = []
 
-    for obj_whitelist in queryset:
-        tarpit_objs.append(
+    for whitelist_record in queryset:
+        tarpit_records.append(
             Tarpit(
-                ip_address=obj_whitelist.ip_address,
-                country_code=obj_whitelist.country_code,
-                city=obj_whitelist.city,
-                abuseipdb_confidence_score=obj_whitelist.abuseipdb_confidence_score,
-                abuseipdb_total_reports=obj_whitelist.abuseipdb_total_reports,
-                abuseipdb_num_distinct_users=obj_whitelist.abuseipdb_num_distinct_users,
-                virustotal_reputation=obj_whitelist.virustotal_reputation,
-                virustotal_harmless=obj_whitelist.virustotal_harmless,
-                virustotal_malicious=obj_whitelist.virustotal_malicious,
-                virustotal_suspicious=obj_whitelist.virustotal_suspicious,
-                virustotal_undetected=obj_whitelist.virustotal_undetected,
-                ipvoid_detection_count=obj_whitelist.ipvoid_detection_count,
-                risk_recommended_pulsedive=obj_whitelist.risk_recommended_pulsedive,
-                last_reported_at=obj_whitelist.last_reported_at,
-                src_longitude=obj_whitelist.src_longitude,
-                src_latitude=obj_whitelist.src_latitude,
+                ip_address=whitelist_record.ip_address,
+                country_code=whitelist_record.country_code,
+                city=whitelist_record.city,
+                abuseipdb_confidence_score=whitelist_record.abuseipdb_confidence_score,
+                abuseipdb_total_reports=whitelist_record.abuseipdb_total_reports,
+                abuseipdb_num_distinct_users=whitelist_record.abuseipdb_num_distinct_users,
+                virustotal_reputation=whitelist_record.virustotal_reputation,
+                virustotal_harmless=whitelist_record.virustotal_harmless,
+                virustotal_malicious=whitelist_record.virustotal_malicious,
+                virustotal_suspicious=whitelist_record.virustotal_suspicious,
+                virustotal_undetected=whitelist_record.virustotal_undetected,
+                ipvoid_detection_count=whitelist_record.ipvoid_detection_count,
+                risk_recommended_pulsedive=whitelist_record.risk_recommended_pulsedive,
+                last_reported_at=whitelist_record.last_reported_at,
+                src_longitude=whitelist_record.src_longitude,
+                src_latitude=whitelist_record.src_latitude,
             )
         )
-        ip_addresses.append(obj_whitelist.ip_address)
+        ip_addresses.append(whitelist_record.ip_address)
 
     try:
         # Cria os objetos de uma vez na tarpit
-        Tarpit.objects.bulk_create(tarpit_objs)
-        logger.info(f"{len(tarpit_objs)} IPs inseridos na tarpit.")
+        Tarpit.objects.bulk_create(tarpit_records)
+        logger.info(f"{len(tarpit_records)} IPs inseridos na tarpit.")
 
         # Deleta todos da wl_address_local com um único DELETE
         if ip_addresses:
@@ -122,39 +122,39 @@ def reprocess_old_whitelist_ips():
 def reprocess_old_blacklist_ips():
     logger = setup_logging()
 
-    tres_dias_atras = now() - timedelta(days=3)
-    queryset = Blacklist.objects.filter(timestamp_added__lt=tres_dias_atras)
+    three_days_ago = now() - timedelta(days=3)
+    queryset = Blacklist.objects.filter(timestamp_added__lt=three_days_ago)
 
-    tarpit_objs = []
+    tarpit_records = []
     ip_addresses = []
 
-    for obj_blacklist in queryset:
-        tarpit_objs.append(
+    for blacklist_records in queryset:
+        tarpit_records.append(
             Tarpit(
-                ip_address=obj_blacklist.ip_address,
-                country_code=obj_blacklist.country_code,
-                city=obj_blacklist.city,
-                abuseipdb_confidence_score=obj_blacklist.abuseipdb_confidence_score,
-                abuseipdb_total_reports=obj_blacklist.abuseipdb_total_reports,
-                abuseipdb_num_distinct_users=obj_blacklist.abuseipdb_num_distinct_users,
-                virustotal_reputation=obj_blacklist.virustotal_reputation,
-                virustotal_harmless=obj_blacklist.virustotal_harmless,
-                virustotal_malicious=obj_blacklist.virustotal_malicious,
-                virustotal_suspicious=obj_blacklist.virustotal_suspicious,
-                virustotal_undetected=obj_blacklist.virustotal_undetected,
-                ipvoid_detection_count=obj_blacklist.ipvoid_detection_count,
-                risk_recommended_pulsedive=obj_blacklist.risk_recommended_pulsedive,
-                last_reported_at=obj_blacklist.last_reported_at,
-                src_longitude=obj_blacklist.src_longitude,
-                src_latitude=obj_blacklist.src_latitude,
+                ip_address=blacklist_records.ip_address,
+                country_code=blacklist_records.country_code,
+                city=blacklist_records.city,
+                abuseipdb_confidence_score=blacklist_records.abuseipdb_confidence_score,
+                abuseipdb_total_reports=blacklist_records.abuseipdb_total_reports,
+                abuseipdb_num_distinct_users=blacklist_records.abuseipdb_num_distinct_users,
+                virustotal_reputation=blacklist_records.virustotal_reputation,
+                virustotal_harmless=blacklist_records.virustotal_harmless,
+                virustotal_malicious=blacklist_records.virustotal_malicious,
+                virustotal_suspicious=blacklist_records.virustotal_suspicious,
+                virustotal_undetected=blacklist_records.virustotal_undetected,
+                ipvoid_detection_count=blacklist_records.ipvoid_detection_count,
+                risk_recommended_pulsedive=blacklist_records.risk_recommended_pulsedive,
+                last_reported_at=blacklist_records.last_reported_at,
+                src_longitude=blacklist_records.src_longitude,
+                src_latitude=blacklist_records.src_latitude,
             )
         )
-        ip_addresses.append(obj_blacklist.ip_address)
+        ip_addresses.append(blacklist_records.ip_address)
 
     try:
         # Criação em lote
-        Tarpit.objects.bulk_create(tarpit_objs)
-        logger.info(f"{len(tarpit_objs)} IPs migrados da blacklist para a tarpit.")
+        Tarpit.objects.bulk_create(tarpit_records)
+        logger.info(f"{len(tarpit_records)} IPs migrados da blacklist para a tarpit.")
 
         # Deleta da bl_address_local em uma única query
         if ip_addresses:

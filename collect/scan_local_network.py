@@ -39,7 +39,7 @@ def scan_local_network(network):
     # Executa o comando nmap e captura a saída
     result = subprocess.run(["nmap", "-sn", network], capture_output=True, text=True)
 
-    url_api = "http://localhost:8001/api/whitelist/"
+    url = "http://localhost:8001/api/whitelist/"
     headers = {"Authorization": f"Token {token}", "Content-Type": "application/json"}
 
     # Verifica se o comando foi bem-sucedido
@@ -55,17 +55,17 @@ def scan_local_network(network):
                     active_hosts.append(ip)
 
                     params = {"ip_address": ip}
-                    response_api = requests.post(
-                        url=url_api, json=params, headers=headers
+                    response = requests.post(
+                        url=url, json=params, headers=headers
                     )
 
-                    if response_api.status_code == 201:
+                    if response.status_code == 201:
                         logger.info(
                             f"IP {ip} foi inserido na whitelist da API com sucesso"
                         )
                     else:
                         logger.error(
-                            f"Houve um erro ao inserir o IP {ip} na whitelist da API: {response_api.status_code}"
+                            f"Houve um erro ao inserir o IP {ip} na whitelist da API: {response.status_code}"
                         )
 
         # Insere os IPs ativos na whitelist do banco local de uma vez
@@ -79,8 +79,8 @@ def scan_local_network(network):
         cursor = conn.cursor()
 
         try:
-            insert_query = "INSERT INTO wl_address_local (ip_address) VALUES (%s)"
-            cursor.executemany(insert_query, [(ip,) for ip in active_hosts])
+            query = "INSERT INTO wl_address_local (ip_address) VALUES (%s)"
+            cursor.executemany(query, [(ip,) for ip in active_hosts])
 
             conn.commit()
             logger.info(
@@ -100,5 +100,5 @@ def scan_local_network(network):
 
 if __name__ == "__main__":
     logger = setup_logging()
-    faixa = input("Digite sua faixa: ")
-    scan_local_network(faixa)
+    network_range = input("Enter the network range (e.g., 192.168.0.0/24): ")
+    scan_local_network(network_range)

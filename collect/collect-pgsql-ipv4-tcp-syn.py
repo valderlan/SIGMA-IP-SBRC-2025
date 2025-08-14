@@ -39,7 +39,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAPPINGS_PATH = os.path.join(BASE_DIR, "mappings.json")
 
 # Arquivo de logs para a collect
-COLLECT_LOG_FILE = os.path.join(BASE_DIR, "collect_outputs", "collect.log")
+COLLECT_LOG_PATH = os.path.join(BASE_DIR, "collect_outputs", "collect.log")
 
 # Carregar mapeamentos de protocolo e serviço a partir de um arquivo JSON
 with open(MAPPINGS_PATH, "r") as f:
@@ -50,7 +50,7 @@ service_mapping = {int(k): v for k, v in mappings["service_mapping"].items()}
 
 
 # Função para logging
-def setup_logging(log_file=COLLECT_LOG_FILE):
+def setup_logging(log_file=COLLECT_LOG_PATH):
     """
     Configura o logging para a aplicação
 
@@ -87,7 +87,7 @@ def get_service_info(packet):
 
 
 # Função para obter latitude, longitude e country code
-def get_geo_info(ip_address):
+def get_geolocation_info(ip_address):
     try:
         with Reader("/usr/share/GeoIP/GeoLite2-City.mmdb") as reader:
             response = reader.city(ip_address)
@@ -107,19 +107,19 @@ def is_private_ip(ip):
 
 
 # Checa se o IP está na wl_address_local
-def ip_exists_in_wl_address_local(ip_address):
+def ip_exists_in_local_whitelist(ip_address):
     cur.execute("SELECT 1 FROM wl_address_local WHERE ip_address = %s;", (ip_address,))
 
     return cur.fetchone() is not None
 
 
-def ip_exists_in_bl_address_local(ip_address):
+def ip_exists_in_local_blacklist(ip_address):
     cur.execute("SELECT 1 FROM bl_address_local WHERE ip_address = %s;", (ip_address,))
 
     return cur.fetchone() is not None
 
 
-def ip_exists_in_suspect_local(ip_address):
+def ip_exists_in_local_suspect(ip_address):
     cur.execute("SELECT 1 FROM suspect_local WHERE ip_address = %s;", (ip_address,))
 
     return cur.fetchone() is not None
@@ -168,29 +168,29 @@ def insert_ip_into_table(
     logger.info(f"Dados do IP {ip_address} inseridos na tabela {table} com sucesso")
 
 
-def apply_iptables_rules(status, ip_address):
-    if status in ["blacklist", "exists_in_api_blacklist"]:
+def apply_firewall_rules(verdict, ip_address):
+    if verdict in ["blacklist", "exists_in_api_blacklist"]:
         apply_blacklist_rules(ip=ip_address)
-    elif status in ["whitelist", "exists_in_api_whitelist"]:
+    elif verdict in ["whitelist", "exists_in_api_whitelist"]:
         apply_whitelist_rules(ip=ip_address)
-    elif status in ["suspect", "exists_in_api_suspect"]:
+    elif verdict in ["suspect", "exists_in_api_suspect"]:
         apply_tarpit_rules(ip=ip_address)
 
 
-def checar_reputacao_ip_e_inserir(
+def check_ip_reputation_and_insert(
     ip_address, src_longitude, country_code, src_latitude, token
 ):
     try:
         # Verificar se o IP está na wl_address_local do banco local
 
-        if ip_exists_in_wl_address_local(ip_address):
+        if ip_exists_in_local_whitelist(ip_address):
             logger.info(f"IP {ip_address} está na whitelist local, acesso liberado.")
             return 0
 
         # Degradar o IP para limitar sua conexão
         apply_tarpit_rules(ip=ip_address)
 
-        start_request = time.time()
+        request_start_time = time.time()
 
         # Se o IP não está na whitelist, consultar API
         url = "http://localhost:8000/api/tarpit/"
@@ -199,7 +199,7 @@ def checar_reputacao_ip_e_inserir(
             "Content-Type": "application/json",
         }
 
-        country_code, city, latitude, longitude = get_geo_info(ip_address) or (
+        country_code, city, latitude, longitude = get_geolocation_info(ip_address) or (
             country_code,
             None,
             None,
@@ -217,7 +217,7 @@ def checar_reputacao_ip_e_inserir(
         response = requests.post(url, headers=headers, json=params)
 
         # Tempo p/ receber qualquer resposta da requisição
-        api_response_time = (time.time() - start_request) * 1000
+        api_response_time = (time.time() - request_start_time) * 1000
         logger.info(f"Tempo de resposta da API: {api_response_time:.3f} milisegundos")
 
         # Se a API não responder com 201
@@ -226,10 +226,10 @@ def checar_reputacao_ip_e_inserir(
             deletar_ip_tarpit(ip=ip_address)
             return None
         response_data = response.json()
-        status = response_data["status"]
+        verdict = response_data["verdict"]
 
         # Blacklist
-        if status in ["blacklist", "none", "exists_in_api_blacklist"]:
+        if verdict in ["blacklist", "none", "exists_in_api_blacklist"]:
             insert_ip_into_table(
                 "bl_address_local",
                 ip_address,
@@ -240,13 +240,13 @@ def checar_reputacao_ip_e_inserir(
                 src_latitude,
             )
 
-            apply_iptables_rules(status, ip_address)
+            apply_firewall_rules(verdict, ip_address)
             deletar_ip_tarpit(ip=ip_address)
 
             return api_response_time
 
         # Suspicious
-        elif status in ["suspicious", "exists_in_api_suspect"]:
+        elif verdict in ["suspicious", "exists_in_api_suspect"]:
             insert_ip_into_table(
                 "suspect_local",
                 ip_address,
@@ -262,7 +262,7 @@ def checar_reputacao_ip_e_inserir(
             return api_response_time
 
         # Whitelist
-        elif status in ["whitelist", "exists_in_api_whitelist"]:
+        elif verdict in ["whitelist", "exists_in_api_whitelist"]:
             insert_ip_into_table(
                 "wl_address_local",
                 ip_address,
@@ -273,14 +273,14 @@ def checar_reputacao_ip_e_inserir(
                 src_latitude,
             )
 
-            apply_iptables_rules(status, ip_address)
+            apply_firewall_rules(verdict, ip_address)
             deletar_ip_tarpit(ip=ip_address)
 
             return api_response_time
 
         # Status desconhecido
         else:
-            logger.error(f"Status desconhecido recebido da API: {status}")
+            logger.error(f"Status desconhecido recebido da API: {verdict}")
             deletar_ip_tarpit(ip=ip_address)
             return api_response_time
 
@@ -382,10 +382,10 @@ def handle_packet(packet):
 
     # Obter informações geográficas
     src_country_code, src_city, src_lat, src_lon = (
-        (None, None, None, None) if is_private_ip(src_ip) else get_geo_info(src_ip)
+        (None, None, None, None) if is_private_ip(src_ip) else get_geolocation_info(src_ip)
     )
     dst_country_code, dst_city, dst_lat, dst_lon = (
-        (None, None, None, None) if is_private_ip(dst_ip) else get_geo_info(dst_ip)
+        (None, None, None, None) if is_private_ip(dst_ip) else get_geolocation_info(dst_ip)
     )
 
     # Obter informações de protocolo e serviços
@@ -403,16 +403,16 @@ def handle_packet(packet):
         # dst_ip_iptables_time, dst_ip_iptables_is_blacklisted = checar_blacklist_ip_tables(dst_ip)
 
         # Checagem do IP de origem e destino na blacklist (caso esteja lá, nem insere na network-traffic)
-        if ip_exists_in_bl_address_local(src_ip):
+        if ip_exists_in_local_blacklist(src_ip):
             logger.info(f"O IP de origem {src_ip} está na bl_address_local")
             pass
-        elif ip_exists_in_bl_address_local(dst_ip):
+        elif ip_exists_in_local_blacklist(dst_ip):
             logger.info(f"O IP de destino {dst_ip} está na bl_address_local")
             pass
-        elif ip_exists_in_suspect_local(src_ip):
+        elif ip_exists_in_local_suspect(src_ip):
             logger.info(f"O IP de origem {src_ip} está na suspect_local")
             pass
-        elif ip_exists_in_suspect_local(dst_ip):
+        elif ip_exists_in_local_suspect(dst_ip):
             logger.info(f"O IP de destino {dst_ip} está na suspect_local")
             pass
         else:
@@ -437,16 +437,16 @@ def handle_packet(packet):
             )
 
             # Calcula o tempo de execução
-            detection_time = (time.time() - start_time) * 1000
+            detection_duration_ms = (time.time() - start_time) * 1000
             logger.info(
-                f"Tempo pra detecção de conexão na wl_address_local: {detection_time:.3f} milisegundos"
+                f"Tempo pra detecção de conexão na wl_address_local: {detection_duration_ms:.3f} milisegundos"
             )
 
             # Verificar e inserir o IP na tp_address_local ou bl_address_local se necessário
-            src_api_response_time = checar_reputacao_ip_e_inserir(
+            src_api_response_time = check_ip_reputation_and_insert(
                 src_ip, src_lon, src_country_code, src_lat, token
             )
-            dst_api_response_time = checar_reputacao_ip_e_inserir(
+            dst_api_response_time = check_ip_reputation_and_insert(
                 dst_ip, dst_lon, dst_country_code, dst_lat, token
             )
 
