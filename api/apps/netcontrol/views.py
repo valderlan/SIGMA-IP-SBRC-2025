@@ -151,11 +151,11 @@ class TarpitViewSet(viewsets.ModelViewSet):
         # Chama o serviço de reputação
         data = filter_and_classify_ip(ip_address)
 
-        if not data or "status" not in data:
-            logger.error("Erro: Resposta inválida ou sem status")
+        if not data or "verdict" not in data:
+            logger.error("Erro: Resposta inválida ou sem veredito")
             return Response({"detail": "Erro ao processar reputação do IP"}, status=500)
 
-        logger.info(f"Status retornado: {data['status']}")
+        logger.info(f"Veredito retornado: {data['verdict']}")
 
         # Calcula o tempo de execução. Espera o resultado da requisição p/ contabilizar.
         execution_time = (time.time() - start_time) * 1000

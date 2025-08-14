@@ -4,14 +4,13 @@ import json
 import logging
 import os
 import time
-
 import psycopg2
 import requests
-from blacklist_rules import apply_blacklist_rules
-from dotenv import load_dotenv
 from geoip2.database import Reader
+from dotenv import load_dotenv
 from scapy.all import IP, TCP, sniff
-from tarpitrule5 import apply_tarpit_rules, deletar_ip_tarpit
+from blacklist_rules import apply_blacklist_rules
+from tarpit_rules import apply_tarpit_rules, deletar_ip_tarpit
 from whitelist_rules import apply_whitelist_rules
 
 dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
@@ -127,10 +126,10 @@ def ip_exists_in_suspect_local(ip_address):
 
 
 def insert_ip_into_table(
-    tabela, ip_address, country_code, city, response_data, src_longitude, src_latitude
+    table, ip_address, country_code, city, response_data, src_longitude, src_latitude
 ):
     query = f"""
-        INSERT INTO {tabela} (
+        INSERT INTO {table} (
             ip_address, 
             country_code, 
             city, 
@@ -166,15 +165,15 @@ def insert_ip_into_table(
     )
     cur.execute(query, values)
     conn.commit()
-    logger.info(f"Dados do IP {ip_address} inseridos na tabela {tabela} com sucesso")
+    logger.info(f"Dados do IP {ip_address} inseridos na tabela {table} com sucesso")
 
 
 def apply_iptables_rules(status, ip_address):
-    if status in ["blacklist", "existente_blacklist"]:
+    if status in ["blacklist", "exists_in_api_blacklist"]:
         apply_blacklist_rules(ip=ip_address)
-    elif status in ["whitelist", "existente_whitelist"]:
+    elif status in ["whitelist", "exists_in_api_whitelist"]:
         apply_whitelist_rules(ip=ip_address)
-    elif status in ["suspect", "existente_suspect"]:
+    elif status in ["suspect", "exists_in_api_suspect"]:
         apply_tarpit_rules(ip=ip_address)
 
 
@@ -230,7 +229,7 @@ def checar_reputacao_ip_e_inserir(
         status = response_data["status"]
 
         # Blacklist
-        if status in ["blacklist", "none", "existente_blacklist"]:
+        if status in ["blacklist", "none", "exists_in_api_blacklist"]:
             insert_ip_into_table(
                 "bl_address_local",
                 ip_address,
@@ -247,7 +246,7 @@ def checar_reputacao_ip_e_inserir(
             return api_response_time
 
         # Suspicious
-        elif status in ["suspicious", "existente_suspect"]:
+        elif status in ["suspicious", "exists_in_api_suspect"]:
             insert_ip_into_table(
                 "suspect_local",
                 ip_address,
@@ -263,7 +262,7 @@ def checar_reputacao_ip_e_inserir(
             return api_response_time
 
         # Whitelist
-        elif status in ["whitelist", "existente_whitelist"]:
+        elif status in ["whitelist", "exists_in_api_whitelist"]:
             insert_ip_into_table(
                 "wl_address_local",
                 ip_address,
