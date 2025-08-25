@@ -30,6 +30,7 @@ __pycache__/
 # Ignorar o diretório de dados do PostgreSQL
 docker/grafana/
 docker/postgres/
+docker/redis-data/
 
 # IA
 .env-sigma
