@@ -27,7 +27,7 @@ __pycache__/
 *.bak
 *.swp
 
-# Ignorar o diretório de dados do PostgreSQL
+# Ignorar arquivos do Docker
 docker/grafana/
 docker/postgres/
 docker/redis-data/
