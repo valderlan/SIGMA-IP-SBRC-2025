@@ -3,26 +3,26 @@ import sys
 import signal
 import django
 
-def delete_tarpit_objects(signal, frame):
+def delete_pending_objects(signal, frame):
     """
-    Função para deletar todos os objetos da tabela Tarpit
+    Função para deletar todos os objetos da tabela analysis
     ao pressionar Ctrl + C.
     """
-    print("\nEncerrando servidor... Limpando tabela Tarpit.")
+    print("\nEncerrando servidor... Limpando tabela analysis.")
     try:
         from django.db import connections
-        from apps.netcontrol.models import Tarpit
+        from apps.netcontrol.models import Analysis
         django.setup()  # Garante que o ambiente Django esteja configurado
-        Tarpit.objects.all().delete()
-        print("Todos os objetos na tabela Tarpit foram deletados.")
+        Analysis.objects.all().delete()
+        print("Todos os objetos na tabela analysis foram deletados.")
     except Exception as e:
-        print(f"Erro ao deletar objetos da tabela Tarpit: {e}")
+        print(f"Erro ao deletar objetos da tabela analysis: {e}")
     finally:
         sys.exit(0)
 
 if __name__ == "__main__":
-    # Configura o sinal SIGINT (Ctrl + C) para chamar delete_tarpit_objects
-    signal.signal(signal.SIGINT, delete_tarpit_objects)
+    # Configura o sinal SIGINT (Ctrl + C) para chamar delete_pending_objects
+    signal.signal(signal.SIGINT, delete_pending_objects)
 
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')  
 

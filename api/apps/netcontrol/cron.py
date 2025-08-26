@@ -14,7 +14,7 @@ from api.core.settings import (
 )
 
 from .externals import SearchAbuse
-from .models import Blacklist, Tarpit, Whitelist
+from .models import Blacklist, Analysis, Whitelist
 from .services import filter_and_classify_ip, insert_new_blacklist_entries
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -58,12 +58,12 @@ def reprocess_old_whitelist_ips():
     three_days_ago = now() - timedelta(days=3)
     queryset = Whitelist.objects.filter(timestamp_added__lt=three_days_ago)
 
-    tarpit_records = []
+    pending_records = []
     ip_addresses = []
 
     for whitelist_record in queryset:
-        tarpit_records.append(
-            Tarpit(
+        pending_records.append(
+            Analysis(
                 ip_address=whitelist_record.ip_address,
                 country_code=whitelist_record.country_code,
                 city=whitelist_record.city,
@@ -85,9 +85,9 @@ def reprocess_old_whitelist_ips():
         ip_addresses.append(whitelist_record.ip_address)
 
     try:
-        # Cria os objetos de uma vez na tarpit
-        Tarpit.objects.bulk_create(tarpit_records)
-        logger.info(f"{len(tarpit_records)} IPs inseridos na tarpit.")
+        # Cria os objetos de uma vez na analysis
+        Analysis.objects.bulk_create(pending_records)
+        logger.info(f"{len(pending_records)} IPs inseridos na analysis.")
 
         # Deleta todos da wl_address_local com um único DELETE
         if ip_addresses:
@@ -125,12 +125,12 @@ def reprocess_old_blacklist_ips():
     three_days_ago = now() - timedelta(days=3)
     queryset = Blacklist.objects.filter(timestamp_added__lt=three_days_ago)
 
-    tarpit_records = []
+    pending_records = []
     ip_addresses = []
 
     for blacklist_records in queryset:
-        tarpit_records.append(
-            Tarpit(
+        pending_records.append(
+            Analysis(
                 ip_address=blacklist_records.ip_address,
                 country_code=blacklist_records.country_code,
                 city=blacklist_records.city,
@@ -153,8 +153,8 @@ def reprocess_old_blacklist_ips():
 
     try:
         # Criação em lote
-        Tarpit.objects.bulk_create(tarpit_records)
-        logger.info(f"{len(tarpit_records)} IPs migrados da blacklist para a tarpit.")
+        Analysis.objects.bulk_create(pending_records)
+        logger.info(f"{len(pending_records)} IPs migrados da blacklist para a analysis.")
 
         # Deleta da bl_address_local em uma única query
         if ip_addresses:

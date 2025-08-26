@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.netcontrol.models import Blacklist, Tarpit, Whitelist, Suspect
+from apps.netcontrol.models import Blacklist, Analysis, Whitelist, Suspect
 
 class BlacklistSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,9 +13,9 @@ class WhitelistSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class TarpitSerializer(serializers.ModelSerializer):
+class AnalysisSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Tarpit
+        model = Analysis
         fields = '__all__'
         
 

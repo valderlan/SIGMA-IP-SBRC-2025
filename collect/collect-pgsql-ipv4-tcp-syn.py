@@ -160,7 +160,7 @@ def check_ip_reputation_and_insert(
         apply_tarpit_rules(ip=ip_address)
 
         request_start_time = time.time()
-        url = "http://localhost:8000/api/tarpit/"
+        url = "http://localhost:8000/api/pending-analysis/"
         headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/json",

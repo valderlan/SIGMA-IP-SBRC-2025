@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from django.db import IntegrityError
-from .models import Blacklist, Whitelist, Tarpit, Suspect
+from .models import Blacklist, Whitelist, Analysis, Suspect
 from .externals import SearchAbuse, SearchVirusTotal, SearchIPVoid, SearchPulsedive
 from concurrent.futures import ThreadPoolExecutor
 import logging
@@ -85,19 +85,19 @@ def insert_new_blacklist_entries(dados):
             logger.error(f"Erro de integridade ao tentar inserir os dados: {e}")
 
 
-def fetch_and_update_ip_reputation_data(obj_tarpit):
+def fetch_and_update_ip_reputation_data(pending_record):
     logger = logging.getLogger(__name__)
 
     with ThreadPoolExecutor() as executor:
         # Faz as requisições para as APIs paralelamente
         futures = {
-            "abuse": executor.submit(SearchAbuse.get_abuseipdb_report, obj_tarpit),
+            "abuse": executor.submit(SearchAbuse.get_abuseipdb_report, pending_record),
             "virustotal": executor.submit(
-                SearchVirusTotal.get_virustotal_report, obj_tarpit
+                SearchVirusTotal.get_virustotal_report, pending_record
             ),
-            "ipvoid": executor.submit(SearchIPVoid.get_ipvoid_report, obj_tarpit),
+            "ipvoid": executor.submit(SearchIPVoid.get_ipvoid_report, pending_record),
             "pulsedive": executor.submit(
-                SearchPulsedive.get_pulsedive_report, obj_tarpit
+                SearchPulsedive.get_pulsedive_report, pending_record
             ),
         }
 
@@ -112,60 +112,66 @@ def fetch_and_update_ip_reputation_data(obj_tarpit):
     # Processar as respostas e salvar no objeto
     if responses.get("abuse"):
         report_abuse = responses["abuse"].get("data", {})
-        obj_tarpit.abuseipdb_confidence_score = report_abuse.get("abuseConfidenceScore")
-        obj_tarpit.last_reported_at = report_abuse.get("lastReportedAt")
-        obj_tarpit.abuseipdb_total_reports = report_abuse.get("totalReports")
-        obj_tarpit.abuseipdb_num_distinct_users = report_abuse.get("numDistinctUsers")
+        pending_record.abuseipdb_confidence_score = report_abuse.get(
+            "abuseConfidenceScore"
+        )
+        pending_record.last_reported_at = report_abuse.get("lastReportedAt")
+        pending_record.abuseipdb_total_reports = report_abuse.get("totalReports")
+        pending_record.abuseipdb_num_distinct_users = report_abuse.get(
+            "numDistinctUsers"
+        )
 
     if responses.get("virustotal"):
         report_virustotal = (
             responses["virustotal"].get("data", {}).get("attributes", {})
         )
         report_virustotal_meta = report_virustotal.get("last_analysis_stats", {})
-        obj_tarpit.virustotal_reputation = report_virustotal.get("reputation")
-        obj_tarpit.virustotal_harmless = report_virustotal_meta.get("harmless")
-        obj_tarpit.virustotal_malicious = report_virustotal_meta.get("malicious")
-        obj_tarpit.virustotal_suspicious = report_virustotal_meta.get("suspicious")
-        obj_tarpit.virustotal_undetected = report_virustotal_meta.get("undetected")
+        pending_record.virustotal_reputation = report_virustotal.get("reputation")
+        pending_record.virustotal_harmless = report_virustotal_meta.get("harmless")
+        pending_record.virustotal_malicious = report_virustotal_meta.get("malicious")
+        pending_record.virustotal_suspicious = report_virustotal_meta.get("suspicious")
+        pending_record.virustotal_undetected = report_virustotal_meta.get("undetected")
 
     if responses.get("ipvoid"):
         report_ipvoid = (
             responses["ipvoid"].get("data", {}).get("report", {}).get("blacklists", {})
         )
-        obj_tarpit.ipvoid_detection_count = report_ipvoid.get("detections", 0)
+        pending_record.ipvoid_detection_count = report_ipvoid.get("detections", 0)
     else:
-        obj_tarpit.ipvoid_detection_count = 0
+        pending_record.ipvoid_detection_count = 0
         # Para quando as chaves estiverem funcionando
         # return None
 
     if responses.get("pulsedive"):
         report_pulsedive = responses["pulsedive"]
-        obj_tarpit.risk_recommended_pulsedive = report_pulsedive.get(
+        pending_record.risk_recommended_pulsedive = report_pulsedive.get(
             "risk_recommended", "unknown"
         )
     else:
-        obj_tarpit.risk_recommended_pulsedive = "unknown"
+        pending_record.risk_recommended_pulsedive = "unknown"
 
-    logger.info(f"IPVOID_DETECTION_COUNT = {obj_tarpit.ipvoid_detection_count}")
-    logger.info(f"RISK_RECOMMENDED_PULSEDIVE = {obj_tarpit.risk_recommended_pulsedive}")
+    logger.info(f"IPVOID_DETECTION_COUNT = {pending_record.ipvoid_detection_count}")
+    logger.info(
+        f"RISK_RECOMMENDED_PULSEDIVE = {pending_record.risk_recommended_pulsedive}"
+    )
 
-    return obj_tarpit
+    return pending_record
 
 
-def check_existing_ip_entry(obj_tarpit, table, verdict):
+def check_existing_ip_entry(pending_record, table, verdict):
     """
     Verifica se o IP está na Blacklist, Whitelist ou Suspect da API.
-    Se estiver, remove da Tarpit e retorna os detalhes do IP.
+    Se estiver, remove da analysis e retorna os detalhes do IP.
     """
     logger = logging.getLogger(__name__)
 
-    if table.objects.filter(ip_address=obj_tarpit.ip_address).exists():
+    if table.objects.filter(ip_address=pending_record.ip_address).exists():
         logger.info(
-            f"O IP {obj_tarpit.ip_address} já existe na {table.__name__}. Removendo da Tarpit."
+            f"O IP {pending_record.ip_address} já existe na {table.__name__}. Removendo da analysis."
         )
-        obj_tarpit.delete()
+        pending_record.delete()
 
-        obj_model = table.objects.get(ip_address=obj_tarpit.ip_address)
+        obj_model = table.objects.get(ip_address=pending_record.ip_address)
 
         return {
             "verdict": verdict,
@@ -194,8 +200,8 @@ def filter_and_classify_ip(ip_address):
     logger = setup_logging()
 
     try:
-        # Pega o objeto da tarpit pelo IP
-        obj_tarpit = Tarpit.objects.get(ip_address=ip_address)
+        # Pega o objeto da analysis pelo IP
+        pending_record = Analysis.objects.get(ip_address=ip_address)
 
         # Verifica se o IP já está na Blacklist, Suspect ou Whitelist
         for table, verdict in [
@@ -203,61 +209,65 @@ def filter_and_classify_ip(ip_address):
             (Suspect, "exists_in_api_suspect"),
             (Whitelist, "exists_in_api_whitelist"),
         ]:
-            check_result = check_existing_ip_entry(obj_tarpit, table, verdict)
+            check_result = check_existing_ip_entry(pending_record, table, verdict)
 
             if check_result:
                 return check_result
 
-        # Executando buscas paralelas para atualizar obj_tarpit
-        obj_tarpit = fetch_and_update_ip_reputation_data(obj_tarpit)
+        # Executando buscas paralelas para atualizar pending_record
+        pending_record = fetch_and_update_ip_reputation_data(pending_record)
 
-        if obj_tarpit:
-            logger.info(f"Iniciando filtragem do IP {obj_tarpit.ip_address}")
+        if pending_record:
+            logger.info(f"Iniciando filtragem do IP {pending_record.ip_address}")
 
-            if obj_tarpit:
+            if pending_record:
                 logger.info(
-                    f"--- Dados coletados para o IP {obj_tarpit.ip_address} ---"
+                    f"--- Dados coletados para o IP {pending_record.ip_address} ---"
                 )
                 logger.info(
-                    f"abuseipdb_confidence_score: {obj_tarpit.abuseipdb_confidence_score}"
+                    f"abuseipdb_confidence_score: {pending_record.abuseipdb_confidence_score}"
                 )
                 logger.info(
-                    f"abuseipdb_total_reports: {obj_tarpit.abuseipdb_total_reports}"
+                    f"abuseipdb_total_reports: {pending_record.abuseipdb_total_reports}"
                 )
                 logger.info(
-                    f"abuseipdb_num_distinct_users: {obj_tarpit.abuseipdb_num_distinct_users}"
+                    f"abuseipdb_num_distinct_users: {pending_record.abuseipdb_num_distinct_users}"
                 )
                 logger.info(
-                    f"ipvoid_detection_count: {obj_tarpit.ipvoid_detection_count}"
+                    f"ipvoid_detection_count: {pending_record.ipvoid_detection_count}"
                 )
                 logger.info(
-                    f"risk_recommended_pulsedive: {obj_tarpit.risk_recommended_pulsedive}"
+                    f"risk_recommended_pulsedive: {pending_record.risk_recommended_pulsedive}"
                 )
                 logger.info(
-                    f"virustotal_reputation: {obj_tarpit.virustotal_reputation}"
-                )
-                logger.info(f"virustotal_harmless: {obj_tarpit.virustotal_harmless}")
-                logger.info(f"virustotal_malicious: {obj_tarpit.virustotal_malicious}")
-                logger.info(
-                    f"virustotal_suspicious: {obj_tarpit.virustotal_suspicious}"
+                    f"virustotal_reputation: {pending_record.virustotal_reputation}"
                 )
                 logger.info(
-                    f"virustotal_undetected: {obj_tarpit.virustotal_undetected}"
+                    f"virustotal_harmless: {pending_record.virustotal_harmless}"
+                )
+                logger.info(
+                    f"virustotal_malicious: {pending_record.virustotal_malicious}"
+                )
+                logger.info(
+                    f"virustotal_suspicious: {pending_record.virustotal_suspicious}"
+                )
+                logger.info(
+                    f"virustotal_undetected: {pending_record.virustotal_undetected}"
                 )
                 logger.info("-------------------------------------------------------")
 
                 data = {
-                    "ip_address": obj_tarpit.ip_address,
-                    "abuseipdb_confidence_score": obj_tarpit.abuseipdb_confidence_score,
-                    "abuseipdb_total_reports": obj_tarpit.abuseipdb_total_reports,
-                    "abuseipdb_num_distinct_users": obj_tarpit.abuseipdb_num_distinct_users,
-                    "ipvoid_detection_count": obj_tarpit.ipvoid_detection_count,
-                    "risk_recommended_pulsedive": obj_tarpit.risk_recommended_pulsedive,
-                    "virustotal_malicious": obj_tarpit.virustotal_malicious,
-                    "virustotal_reputation": obj_tarpit.virustotal_reputation,
-                    "virustotal_suspicious": obj_tarpit.virustotal_suspicious,
-                    "virustotal_undetected": obj_tarpit.virustotal_undetected,
-                    "virustotal_harmless": obj_tarpit.virustotal_harmless,
+                    "ip_address": pending_record.ip_address,
+                    "abuseipdb_confidence_score": pending_record.abuseipdb_confidence_score,
+                    "abuseipdb_total_reports": pending_record.abuseipdb_total_reports,
+                    "abuseipdb_num_distinct_users": pending_record.abuseipdb_num_distinct_users,
+                    "ipvoid_detection_count": pending_record.ipvoid_detection_count,
+                    "risk_recommended_pulsedive": pending_record.risk_recommended_pulsedive,
+                    "virustotal_malicious": pending_record.virustotal_malicious,
+                    "virustotal_reputation": pending_record.virustotal_reputation,
+                    "virustotal_suspicious": pending_record.virustotal_suspicious,
+                    "virustotal_undetected": pending_record.virustotal_undetected,
+                    "virustotal_harmless": pending_record.virustotal_harmless,
                 }
 
             predictor = IPClassificationPredictor(
@@ -269,15 +279,15 @@ def filter_and_classify_ip(ip_address):
             # Preenche os dados completos antes da salvar
             data.update(
                 {
-                    "country_code": obj_tarpit.country_code,
-                    "city": obj_tarpit.city,
-                    "last_reported_at": obj_tarpit.last_reported_at,
-                    "src_longitude": obj_tarpit.src_longitude,
-                    "src_latitude": obj_tarpit.src_latitude,
+                    "country_code": pending_record.country_code,
+                    "city": pending_record.city,
+                    "last_reported_at": pending_record.last_reported_at,
+                    "src_longitude": pending_record.src_longitude,
+                    "src_latitude": pending_record.src_latitude,
                 }
             )
 
-            obj_tarpit.delete()
+            pending_record.delete()
 
             classification = list(results.values())[0]["classification"]
             print(classification)
@@ -306,11 +316,11 @@ def filter_and_classify_ip(ip_address):
 
             Blacklist.objects.create(ip_address=ip_address)
 
-            # Deleta o objeto da tarpit
-            Tarpit.objects.filter(ip_address=ip_address).delete()
+            # Deleta o objeto da analysis
+            Analysis.objects.filter(ip_address=ip_address).delete()
 
             return {"verdict": "blacklist"}
 
-    except Tarpit.DoesNotExist:
-        logger.warning("Nenhum registro encontrado na tabela Tarpit")
+    except Analysis.DoesNotExist:
+        logger.warning("Nenhum registro encontrado na tabela analysis")
         return {"verdict": "none"}

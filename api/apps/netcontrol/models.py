@@ -26,7 +26,7 @@ class Whitelist(Model):
         return self.ip_address
 
 
-class Tarpit(Model):
+class Analysis(Model):
     ip_address = CharField(max_length=45, unique=True)
     country_code = CharField(max_length=3, null=True)
     city = CharField(max_length=255, null=True)
@@ -46,7 +46,7 @@ class Tarpit(Model):
     src_longitude = FloatField(null=True)
 
     class Meta:
-        db_table = 'tarpit'
+        db_table = 'analysis'
 
     def __str__(self):
         return self.ip_address

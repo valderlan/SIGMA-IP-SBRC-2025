@@ -1,5 +1,5 @@
 from django_filters import FilterSet, CharFilter, NumberFilter, DateTimeFilter
-from apps.netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
+from apps.netcontrol.models import Blacklist, Whitelist, Analysis, Suspect
 
 
 class BlacklistFilter(FilterSet):
@@ -72,7 +72,7 @@ class WhitelistFilter(FilterSet):
         ]
 
 
-class TarpitFilter(FilterSet):
+class AnalysisFilter(FilterSet):
     ip_address = CharFilter(field_name="ip_address", lookup_expr="iexact")
     country_code = CharFilter(field_name="country_code", lookup_expr="iexact")
     city = CharFilter(field_name="city", lookup_expr="iexact")
@@ -96,7 +96,7 @@ class TarpitFilter(FilterSet):
     )
 
     class Meta:
-        model = Tarpit
+        model = Analysis
         fields = [
             "ip_address",
             "country_code",

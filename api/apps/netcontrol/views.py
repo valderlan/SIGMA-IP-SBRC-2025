@@ -3,18 +3,18 @@ from rest_framework.response import Response
 from rest_framework import filters
 from rest_framework.permissions import IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
-from apps.netcontrol.models import Blacklist, Whitelist, Tarpit, Suspect
+from apps.netcontrol.models import Blacklist, Whitelist, Analysis, Suspect
 from apps.netcontrol.pagination import GenericPagination
 from apps.netcontrol.serializers import (
     BlacklistSerializer,
     WhitelistSerializer,
-    TarpitSerializer,
+    AnalysisSerializer,
     SuspectSerializer,
 )
 from apps.netcontrol.filters import (
     BlacklistFilter,
     WhitelistFilter,
-    TarpitFilter,
+    AnalysisFilter,
     SuspectFilter,
 )
 from apps.netcontrol.services import filter_and_classify_ip
@@ -103,38 +103,38 @@ class WhitelistViewSet(viewsets.ModelViewSet):
 
 @extend_schema_view(
     create=extend_schema(
-        summary="Creates a tarpit object",
-        description="Creates a new tarpit object.",
+        summary="Creates a analysis object",
+        description="Creates a new analysis object.",
     ),
     list=extend_schema(
-        summary="List all tarpit objects",
-        description="Returns a list of all tarpit objects.",
+        summary="List all analysis objects",
+        description="Returns a list of all analysis objects.",
     ),
     retrieve=extend_schema(
-        summary="Retrieve a specific tarpit object",
-        description="Returns a tarpit object by its IP.",
+        summary="Retrieve a specific analysis object",
+        description="Returns a analysis object by its IP.",
     ),
     update=extend_schema(
-        summary="Update a tarpit object",
-        description="Updates an tarpit object by its IP.",
+        summary="Update a analysis object",
+        description="Updates an analysis object by its IP.",
     ),
     partial_update=extend_schema(
-        summary="Partially update an tarpit object",
-        description="Partially updates a tarpit object by its IP.",
+        summary="Partially update an analysis object",
+        description="Partially updates a analysis object by its IP.",
     ),
     destroy=extend_schema(
-        summary="Delete a tarpit object",
-        description="Deletes a tarpit object by its IP",
+        summary="Delete a analysis object",
+        description="Deletes a analysis object by its IP",
     ),
 )
-class TarpitViewSet(viewsets.ModelViewSet):
-    queryset = Tarpit.objects.all().order_by("id")
-    serializer_class = TarpitSerializer
+class AnalysisViewSet(viewsets.ModelViewSet):
+    queryset = Analysis.objects.all().order_by("id")
+    serializer_class = AnalysisSerializer
     lookup_field = "ip_address"
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ["ip_address", "country_code", "abuseipdb_confidence_score"]
-    filterset_class = TarpitFilter
+    filterset_class = AnalysisFilter
     pagination_class = GenericPagination
     http_method_names = ["get", "post", "put", "patch", "delete"]
     lookup_field = "ip_address"

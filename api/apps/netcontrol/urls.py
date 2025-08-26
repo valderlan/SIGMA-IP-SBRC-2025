@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import BlacklistViewSet, WhitelistViewSet, TarpitViewSet, SuspectViewSet
+from .views import BlacklistViewSet, WhitelistViewSet, AnalysisViewSet, SuspectViewSet
 
 
 urlpatterns = [
@@ -29,11 +29,11 @@ urlpatterns = [
             }
         ),
     ),
-    # urls para tarpit
-    path("tarpit/", TarpitViewSet.as_view({"get": "list", "post": "create"})),
+    # urls para analysis
+    path("pending-analysis/", AnalysisViewSet.as_view({"get": "list", "post": "create"})),
     path(
-        "tarpit/<str:ip_address>/",
-        TarpitViewSet.as_view(
+        "pending-analysis/<str:ip_address>/",
+        AnalysisViewSet.as_view(
             {
                 "get": "retrieve",
                 "put": "update",
