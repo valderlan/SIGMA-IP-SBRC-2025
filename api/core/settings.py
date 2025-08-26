@@ -187,6 +187,10 @@ CRONJOBS = [
         "netcontrol.cron.reprocess_old_blacklist_ips",
     ),  # Vai executar a cada 7 dias ao meio-dia
     (
+        "0 12 */3 * *",  # a cada 3 dias
+        "netcontrol.cron.reprocess_old_suspect_ips",
+    ),
+    (
         "0 12 */3 * *",
         "netcontrol.cron.update_blacklist",
     ),  # Vai executar a cada 3 dias ao meio-dia

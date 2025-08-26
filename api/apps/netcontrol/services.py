@@ -1,11 +1,11 @@
 import os
+import logging
 from datetime import datetime
 from dotenv import load_dotenv
 from django.db import IntegrityError
 from .models import Blacklist, Whitelist, Analysis, Suspect
 from .externals import SearchAbuse, SearchVirusTotal, SearchIPVoid, SearchPulsedive
 from concurrent.futures import ThreadPoolExecutor
-import logging
 from apps.netcontrol.ia_model.ip_prediction import IPClassificationPredictor
 
 load_dotenv()

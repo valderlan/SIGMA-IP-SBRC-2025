@@ -52,7 +52,7 @@ def configurar_chain_tarpit():
     create_or_flush_tarpit_chain()
     setup_tarpit_chain()
 
-def deletar_ip_tarpit(ip):
+def remove_ip_from_iptables_tarpit(ip):
     run_iptables_command(f'sudo iptables -D INPUT -s {ip} -j TARPIT')
     run_iptables_command(f'sudo iptables -D FORWARD -s {ip} -j TARPIT')
     print(f'O IP {ip} foi deletado da tarpit do iptables')

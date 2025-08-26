@@ -9,7 +9,7 @@ from geoip2.database import Reader
 from dotenv import load_dotenv
 from scapy.all import IP, TCP, sniff
 from blacklist_rules import apply_blacklist_rules
-from tarpit_rules import apply_tarpit_rules, deletar_ip_tarpit
+from tarpit_rules import apply_tarpit_rules, remove_ip_from_iptables_tarpit
 from whitelist_rules import apply_whitelist_rules
 
 dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
@@ -187,7 +187,7 @@ def check_ip_reputation_and_insert(
 
         if response.status_code != 201:
             logger.error(f"Erro ao enviar IP para API: {response.status_code}")
-            deletar_ip_tarpit(ip=ip_address)
+            remove_ip_from_iptables_tarpit(ip=ip_address)
             return None
 
         response_data = response.json()
@@ -209,12 +209,12 @@ def check_ip_reputation_and_insert(
         else:
             logger.error(f"Status desconhecido recebido da API: {verdict}")
 
-        deletar_ip_tarpit(ip=ip_address)
+        remove_ip_from_iptables_tarpit(ip=ip_address)
         return api_response_time
 
     except Exception as e:
         logger.error(f"Erro inesperado ao processar IP {ip_address}: {str(e)}")
-        deletar_ip_tarpit(ip=ip_address)
+        remove_ip_from_iptables_tarpit(ip=ip_address)
         return None
 
 

@@ -30,6 +30,11 @@ def remove_blacklist_chain():
     run_iptables_command('sudo iptables -X BLACKLIST')
     print("Chain blacklist removida.")
 
+def remove_ip_from_iptables_blacklist(ip):
+    run_iptables_command(f'sudo iptables -D INPUT -s {ip} -j BLACKLIST')
+    run_iptables_command(f'sudo iptables -D FORWARD -s {ip} -j BLACKLIST')
+    print(f'O IP {ip} foi deletado da chain BLACKLIST do iptables')
+
 def configurar_chain_blacklist():
     # Configura e aplica as regras para a BLACKLIST
     create_or_flush_chain()
