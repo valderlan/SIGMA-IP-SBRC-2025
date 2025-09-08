@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.pyc
+*.pyo
+*.log
+__pycache__/
+imgs/
+pdf/
+results/

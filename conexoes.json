@@ -182,7 +182,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT src_latitude AS latitude, src_longitude AS longitude FROM public.tp_address_local WHERE src_longitude is not null order by id DESC LIMIT 50;",
+          "rawSql": "SELECT src_latitude AS latitude, src_longitude AS longitude FROM public.suspect WHERE src_longitude is not null order by id DESC LIMIT 50;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -269,7 +269,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT TO_CHAR(last_reported_at, 'DD/MM/YY HH24:MI:SS') AS \"Último Reporte\", abuse_confidence_score AS \"Rep. Negativa\", ip_address AS \"IP de Origem\", country_code as \"País de Origem\" FROM tp_address_local WHERE src_longitude is not null order by id DESC LIMIT 50;",
+          "rawSql": "SELECT TO_CHAR(last_reported_at, 'DD/MM/YY HH24:MI:SS') AS \"Último Reporte\", abuseipdb_confidence_score AS \"Rep. Negativa\", ip_address AS \"IP de Origem\", country_code as \"País de Origem\" FROM suspect WHERE src_longitude is not null order by id DESC LIMIT 50;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -351,7 +351,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "select count (*) from tp_address_local;",
+          "rawSql": "select count (*) from suspect;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -492,7 +492,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT src_latitude AS latitude, src_longitude AS longitude FROM public.bl_address_local WHERE src_longitude is not null order by id DESC LIMIT 50;",
+          "rawSql": "SELECT src_latitude AS latitude, src_longitude AS longitude FROM public.blacklist WHERE src_longitude is not null order by id DESC LIMIT 50;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -579,7 +579,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT TO_CHAR(timestamp_added, 'DD/MM/YY HH24:MI:SS') AS \"Momento de Detecção\", ip_address AS \"IP de Origem\", country_code as \"País de Origem\", city AS \"Cidade de Origem\" FROM bl_address_local WHERE src_longitude is not null order by id DESC LIMIT 50;",
+          "rawSql": "SELECT TO_CHAR(timestamp_added, 'DD/MM/YY HH24:MI:SS') AS \"Momento de Detecção\", ip_address AS \"IP de Origem\", country_code as \"País de Origem\", city AS \"Cidade de Origem\" FROM blacklist WHERE src_longitude is not null order by id DESC LIMIT 50;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -661,7 +661,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "select count (*) from bl_address_local;",
+          "rawSql": "select count (*) from blacklist;",
           "refId": "A",
           "sql": {
             "columns": [
