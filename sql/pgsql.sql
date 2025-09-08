@@ -1,5 +1,5 @@
 -- SQL para a criação das tabelas do banco local -- 
-CREATE TABLE network_traffic (
+CREATE TABLE IF NOT EXISTS network_traffic (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP WITHOUT TIME ZONE,
     src_ip VARCHAR(45),
@@ -21,7 +21,7 @@ CREATE TABLE network_traffic (
     CONSTRAINT unique_traffic UNIQUE (timestamp, src_ip, dst_ip, protocol_name, src_service, dst_service, src_country_code, src_city, src_latitude, src_longitude, dst_country_code, dst_city, dst_latitude, dst_longitude, src_port, dst_port, connection_time) -- Restringe todos os campos a serem iguais
 );
 
-CREATE TABLE wl_address_local (
+CREATE TABLE IF NOT EXISTS wl_address_local (
     id SERIAL PRIMARY KEY,
     ip_address VARCHAR(45) UNIQUE NOT NULL,
     country_code VARCHAR(3),
@@ -42,7 +42,7 @@ CREATE TABLE wl_address_local (
     timestamp_added TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE bl_address_local (
+CREATE TABLE IF NOT EXISTS bl_address_local (
     id SERIAL PRIMARY KEY,
     ip_address VARCHAR(45) UNIQUE NOT NULL,
     country_code VARCHAR(3),
@@ -63,7 +63,7 @@ CREATE TABLE bl_address_local (
     timestamp_added TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE suspect_local (
+CREATE TABLE IF NOT EXISTS suspect_local (
     id SERIAL PRIMARY KEY,
     ip_address VARCHAR(45) UNIQUE NOT NULL,
     country_code VARCHAR(3),

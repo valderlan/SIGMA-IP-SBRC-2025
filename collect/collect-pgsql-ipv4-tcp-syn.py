@@ -113,13 +113,13 @@ def add_to_blacklist(ip, ttl=None):
 def add_to_whitelist(ip, ttl=None):
     r.sadd(WHITELIST_KEY, ip)
     if ttl:
-        r.expire(BLACKLIST_KEY, ttl)
+        r.expire(WHITELIST_KEY, ttl)
 
 
 def add_to_suspect(ip, ttl=None):
     r.sadd(SUSPECT_KEY, ip)
     if ttl:
-        r.expire(BLACKLIST_KEY, ttl)
+        r.expire(SUSPECT_KEY, ttl)
 
 
 def is_blacklisted(ip):
@@ -156,11 +156,8 @@ def check_ip_reputation_and_insert(
     ip_address, src_longitude, country_code, src_latitude, token
 ):
     try:
-        # Degradar o IP para limitar sua conexão
-        apply_tarpit_rules(ip=ip_address)
-
         request_start_time = time.time()
-        url = "http://localhost:8000/api/pending-analysis/"
+        url = "http://localhost:8000/api/v1/pending-analysis/"
         headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/json",
@@ -182,7 +179,7 @@ def check_ip_reputation_and_insert(
         }
 
         response = requests.post(url, headers=headers, json=params)
-        api_response_time = (time.time() - request_start_time) * 1000
+        api_response_time = (time.time() - request_start_time)
         logger.info(f"Tempo de resposta da API: {api_response_time:.3f} milisegundos")
 
         if response.status_code != 201:
@@ -209,12 +206,10 @@ def check_ip_reputation_and_insert(
         else:
             logger.error(f"Status desconhecido recebido da API: {verdict}")
 
-        remove_ip_from_iptables_tarpit(ip=ip_address)
         return api_response_time
 
     except Exception as e:
         logger.error(f"Erro inesperado ao processar IP {ip_address}: {str(e)}")
-        remove_ip_from_iptables_tarpit(ip=ip_address)
         return None
 
 
@@ -253,8 +248,7 @@ def handle_packet(packet):
 
         # Checa se é preciso processar o source IP
         process_src = (
-            not is_private_ip(src_ip)
-            and not is_blacklisted(src_ip)
+            not is_blacklisted(src_ip)
             and not is_whitelisted(src_ip)
             and not is_suspect(src_ip)
             and not already_processed(src_ip)
@@ -262,8 +256,7 @@ def handle_packet(packet):
 
         # Checa se é preciso processar o destination IP
         process_dst = (
-            not is_private_ip(dst_ip)
-            and not is_blacklisted(dst_ip)
+            not is_blacklisted(dst_ip)
             and not is_whitelisted(dst_ip)
             and not is_suspect(dst_ip)
             and not already_processed(dst_ip)
@@ -271,9 +264,9 @@ def handle_packet(packet):
 
         # Se nenhum dos dois precisa ser processado, retorna
         if not process_src and not process_dst:
-            detection_duration_ms = (time.time() - connection_time) * 1000
+            detection_duration_ms = (time.time() - connection_time)
             logger.info(
-                f"Tempo pra detecção de conexão no cache: {detection_duration_ms:.3f} milisegundos"
+                f"Tempo pra detecção de conexão ({src_ip} -> {dst_ip}) no cache: {detection_duration_ms:.3f} milisegundos"
             )
             return
 

@@ -4,7 +4,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("apps.netcontrol.urls")),
+    path("api/v1/", include("apps.netcontrol.urls")),
     path(
         "api/swagger/schema",
         SpectacularAPIView.as_view(),
