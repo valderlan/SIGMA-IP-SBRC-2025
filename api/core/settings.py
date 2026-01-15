@@ -23,6 +23,9 @@ load_dotenv(DOTENV_PATH)
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+API_MAJOR = "v1"
+API_VERSION = "1.0"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -195,3 +198,9 @@ CRONJOBS = [
         "netcontrol.cron.update_blacklist",
     ),  # Vai executar a cada 3 dias ao meio-dia
 ]
+
+# Chaves de APIs externas
+API_KEY_ABUSE = json.loads(os.getenv("API_KEY_ABUSE", "[]"))
+API_KEY_VIRUSTOTAL = json.loads(os.getenv("API_KEY_VIRUSTOTAL", "[]"))
+API_KEY_APIVOID = json.loads(os.getenv("API_KEY_APIVOID", "[]"))
+API_KEY_PULSEDIVE = json.loads(os.getenv("API_KEY_PULSEDIVE", "[]"))
