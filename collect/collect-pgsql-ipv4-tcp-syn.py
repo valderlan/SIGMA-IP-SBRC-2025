@@ -5,14 +5,34 @@ import os
 import time
 import requests
 import redis
+import csv
 from geoip2.database import Reader
 from dotenv import load_dotenv
 from scapy.all import IP, TCP, sniff
 from blacklist_rules import apply_blacklist_rules
 from tarpit_rules import apply_tarpit_rules, remove_ip_from_iptables_tarpit
 from whitelist_rules import apply_whitelist_rules
+from datetime import datetime, timezone
 
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+CSV_PATH = os.path.join(BASE_DIR, "collect_outputs", "collected_data.csv")
+
+csv_file = open(CSV_PATH, mode="a", newline="")
+csv_writer = csv.writer(csv_file)
+
+if os.stat(CSV_PATH).st_size == 0:
+    csv_writer.writerow([
+        "timestamp",
+        "ip",
+        "type",
+        "latency_ms",
+        "verdict",
+        "country_code",
+        "city",
+    ])
+
+dotenv_path = os.path.join(BASE_DIR, "..", "api", ".env")
 load_dotenv(dotenv_path)
 
 token = os.environ.get("token")
@@ -30,13 +50,10 @@ WHITELIST_KEY = "firewall:whitelist"
 SUSPECT_KEY = "firewall:suspect"
 PROCESSED_KEY = "firewall:processed"
 
-# Determinar o diretório onde o script está localizado (pasta collect)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Construir o caminho absoluto para o arquivo JSON
 MAPPINGS_PATH = os.path.join(BASE_DIR, "mappings.json")
 
-# Arquivo de logs para a collect
 COLLECT_LOG_PATH = os.path.join(BASE_DIR, "collect_outputs", "collect.log")
 
 # Carregar mapeamentos de protocolo e serviço a partir de um arquivo JSON
@@ -153,22 +170,16 @@ def apply_firewall_rules(verdict, ip_address):
 
 
 def check_ip_reputation_and_insert(
-    ip_address, src_longitude, country_code, src_latitude, token
+    ip_address, src_longitude, country_code, city, src_latitude, token
 ):
     try:
         request_start_time = time.time()
+
         url = "http://localhost:8000/api/v1/pending-analysis/"
         headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/json",
         }
-
-        country_code, city, latitude, longitude = get_geolocation_info(ip_address) or (
-            country_code,
-            None,
-            None,
-            None,
-        )
 
         params = {
             "ip_address": ip_address,
@@ -179,16 +190,30 @@ def check_ip_reputation_and_insert(
         }
 
         response = requests.post(url, headers=headers, json=params)
-        api_response_time = (time.time() - request_start_time)
-        logger.info(f"Tempo de resposta da API: {api_response_time:.3f} milisegundos")
+        api_response_time_ms = (time.time() - request_start_time) * 1000
+        logger.info(
+            f"Tempo de checar o IP {ip_address} na API: {api_response_time_ms:.3f} ms"
+        )
+        logger.info(f"Status Code: {response.status_code}")
 
         if response.status_code != 201:
             logger.error(f"Erro ao enviar IP para API: {response.status_code}")
             remove_ip_from_iptables_tarpit(ip=ip_address)
-            return None
+            return
 
         response_data = response.json()
         verdict = response_data["verdict"]
+
+        csv_writer.writerow([
+            datetime.now(timezone.utc).isoformat(),
+            ip_address,
+            "api",
+            f"{api_response_time_ms:.3f}",
+            verdict,
+            country_code,
+            city,
+        ])
+        csv_file.flush()
 
         # Aplicar regras baseadas no veredito
         if verdict in ["blacklist", "none", "exists_in_api_blacklist"]:
@@ -206,11 +231,11 @@ def check_ip_reputation_and_insert(
         else:
             logger.error(f"Status desconhecido recebido da API: {verdict}")
 
-        return api_response_time
+        return 
 
     except Exception as e:
         logger.error(f"Erro inesperado ao processar IP {ip_address}: {str(e)}")
-        return None
+        return
 
 
 # Função para manipular pacotes de rede
@@ -223,18 +248,6 @@ def handle_packet(packet):
     src_ip = packet[IP].src
     dst_ip = packet[IP].dst
 
-    # Obter informações geográficas
-    src_country_code, src_city, src_lat, src_lon = (
-        (None, None, None, None)
-        if is_private_ip(src_ip)
-        else get_geolocation_info(src_ip)
-    )
-    dst_country_code, dst_city, dst_lat, dst_lon = (
-        (None, None, None, None)
-        if is_private_ip(dst_ip)
-        else get_geolocation_info(dst_ip)
-    )
-
     # Obter informações de protocolo e serviços
     protocol_code, protocol_name = get_protocol_info(packet)
     src_service, dst_service = get_service_info(packet)
@@ -244,7 +257,7 @@ def handle_packet(packet):
 
     # Inserção de dados condicionada a tentativa de conexão (flag SYN sem ACK)
     if "S" in packet[TCP].flags and "A" not in packet[TCP].flags:
-        connection_time = time.time() - start_time  # Calcula o tempo decorrido
+        start_time = time.time()
 
         # Checa se é preciso processar o source IP
         process_src = (
@@ -264,9 +277,22 @@ def handle_packet(packet):
 
         # Se nenhum dos dois precisa ser processado, retorna
         if not process_src and not process_dst:
-            detection_duration_ms = (time.time() - connection_time)
+            detection_duration_ms = (time.time() - start_time) * 1000
+
+            csv_writer.writerow([
+                datetime.now(timezone.utc).isoformat(),
+                f"{src_ip}->{dst_ip}",
+                "cache",
+                f"{detection_duration_ms:.3f}",
+                "",
+                "",
+                "",
+            ])
+            csv_file.flush()
+
             logger.info(
-                f"Tempo pra detecção de conexão ({src_ip} -> {dst_ip}) no cache: {detection_duration_ms:.3f} milisegundos"
+                f"Tempo pra detecção de conexão ({src_ip} -> {dst_ip}) no cache: "
+                f"{detection_duration_ms:.3f} ms"
             )
             return
 
@@ -274,25 +300,17 @@ def handle_packet(packet):
         if process_src:
             mark_processed(src_ip)
             src_country_code, src_city, src_lat, src_lon = get_geolocation_info(src_ip)
-            src_api_response_time = check_ip_reputation_and_insert(
-                src_ip, src_lon, src_country_code, src_lat, token
+            check_ip_reputation_and_insert(
+                src_ip, src_lon, src_country_code, src_city, src_lat, token
             )
-            if src_api_response_time is not None:
-                logger.info(
-                    f"Tempo de checar o IP {src_ip} na API: {src_api_response_time:.3f} milisegundos"
-                )
 
         # Processa o destination IP se necessário
         if process_dst:
             mark_processed(dst_ip)
             dst_country_code, dst_city, dst_lat, dst_lon = get_geolocation_info(dst_ip)
-            dst_api_response_time = check_ip_reputation_and_insert(
-                dst_ip, dst_lon, dst_country_code, dst_lat, token
+            check_ip_reputation_and_insert(
+                dst_ip, dst_lon, dst_country_code, dst_city, dst_lat, token
             )
-            if dst_api_response_time is not None:
-                logger.info(
-                    f"Tempo de checar o IP {dst_ip} na API: {dst_api_response_time} milisegundos"
-                )
 
 
 if __name__ == "__main__":
