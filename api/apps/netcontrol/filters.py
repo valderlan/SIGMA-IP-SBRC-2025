@@ -13,10 +13,10 @@ class BlacklistFilter(FilterSet):
         field_name="abuseipdb_confidence_score", lookup_expr="lte"
     )
     last_reported_at__gte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="gte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="gte"
     )
     last_reported_at__lte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="lte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="lte"
     )
     timestamp_added__gte = DateTimeFilter(
         field_name="timestamp_added", lookup_expr="gte"
@@ -32,7 +32,7 @@ class BlacklistFilter(FilterSet):
             "country_code",
             "city",
             "abuseipdb_confidence_score",
-            "last_reported_at",
+            "abuseipdb_last_reported_at",
             "timestamp_added",
         ]
 
@@ -48,10 +48,10 @@ class WhitelistFilter(FilterSet):
         field_name="abuseipdb_confidence_score", lookup_expr="lte"
     )
     last_reported_at__gte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="gte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="gte"
     )
     last_reported_at__lte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="lte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="lte"
     )
     timestamp_added__gte = DateTimeFilter(
         field_name="timestamp_added", lookup_expr="gte"
@@ -67,7 +67,7 @@ class WhitelistFilter(FilterSet):
             "country_code",
             "city",
             "abuseipdb_confidence_score",
-            "last_reported_at",
+            "abuseipdb_last_reported_at",
             "timestamp_added",
         ]
 
@@ -83,10 +83,10 @@ class AnalysisFilter(FilterSet):
         field_name="abuseipdb_confidence_score", lookup_expr="lte"
     )
     last_reported_at__gte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="gte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="gte"
     )
     last_reported_at__lte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="lte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="lte"
     )
     timestamp_added__gte = DateTimeFilter(
         field_name="timestamp_added", lookup_expr="gte"
@@ -102,7 +102,7 @@ class AnalysisFilter(FilterSet):
             "country_code",
             "city",
             "abuseipdb_confidence_score",
-            "last_reported_at",
+            "abuseipdb_last_reported_at",
             "timestamp_added",
         ]
 
@@ -118,10 +118,10 @@ class SuspectFilter(FilterSet):
         field_name="abuseipdb_confidence_score", lookup_expr="lte"
     )
     last_reported_at__gte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="gte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="gte"
     )
     last_reported_at__lte = DateTimeFilter(
-        field_name="last_reported_at", lookup_expr="lte"
+        field_name="abuseipdb_last_reported_at", lookup_expr="lte"
     )
     timestamp_added__gte = DateTimeFilter(
         field_name="timestamp_added", lookup_expr="gte"
@@ -137,6 +137,6 @@ class SuspectFilter(FilterSet):
             "country_code",
             "city",
             "abuseipdb_confidence_score",
-            "last_reported_at",
+            "abuseipdb_last_reported_at",
             "timestamp_added",
         ]
