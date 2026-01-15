@@ -1,58 +1,15 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import BlacklistViewSet, WhitelistViewSet, AnalysisViewSet, SuspectViewSet
 
 
+router = DefaultRouter()
+router.register(r"blacklist", BlacklistViewSet, basename="blacklist")
+router.register(r"whitelist", WhitelistViewSet, basename="whitelist")
+router.register(r"pending-analysis", AnalysisViewSet, basename="analysis")
+router.register(r"suspect", SuspectViewSet, basename="suspect")
+
+
 urlpatterns = [
-    # urls para blacklist
-    path("blacklist/", BlacklistViewSet.as_view({"get": "list", "post": "create"})),
-    path(
-        "blacklist/<str:ip_address>/",
-        BlacklistViewSet.as_view(
-            {
-                "get": "retrieve",
-                "put": "update",
-                "patch": "partial_update",
-                "delete": "destroy",
-            }
-        ),
-    ),
-    # urls para whitelist
-    path("whitelist/", WhitelistViewSet.as_view({"get": "list", "post": "create"})),
-    path(
-        "whitelist/<str:ip_address>/",
-        WhitelistViewSet.as_view(
-            {
-                "get": "retrieve",
-                "put": "update",
-                "patch": "partial_update",
-                "delete": "destroy",
-            }
-        ),
-    ),
-    # urls para analysis
-    path("pending-analysis/", AnalysisViewSet.as_view({"get": "list", "post": "create"})),
-    path(
-        "pending-analysis/<str:ip_address>/",
-        AnalysisViewSet.as_view(
-            {
-                "get": "retrieve",
-                "put": "update",
-                "patch": "partial_update",
-                "delete": "destroy",
-            }
-        ),
-    ),
-    # urls para suspect
-    path("suspect/", SuspectViewSet.as_view({"get": "list", "post": "create"})),
-    path(
-        "suspect/<str:ip_address>/",
-        SuspectViewSet.as_view(
-            {
-                "get": "retrieve",
-                "put": "update",
-                "patch": "partial_update",
-                "delete": "destroy",
-            }
-        ),
-    ),
+    path("", include(router.urls)),
 ]
