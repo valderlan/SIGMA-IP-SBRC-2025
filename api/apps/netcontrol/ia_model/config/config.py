@@ -126,7 +126,8 @@ SCORE_COLS = [
     "abuseipdb_confidence_score",
     "abuseipdb_total_reports",
     "abuseipdb_num_distinct_users",
-    "ipvoid_detection_count",
+    "apivoid_risk_score",
+    "apivoid_blacklists_detection_rate",
     "risk_recommended_pulsedive",
     "virustotal_reputation",
     "virustotal_harmless",
@@ -173,6 +174,18 @@ PARAM_GRID = {
         "knn__metric": ["euclidean"],
         "knn__p": [2],
         "knn__leaf_size": [50],
+    },
+    "AdaBoost": {
+        'n_estimators': [50, 100],
+        'learning_rate': [0.1, 0.5, 1.0],
+    },
+     "Voting": {
+        'voting': ['soft'],
+        'weights': [[1, 1, 1], [2, 1, 1], [1, 2, 1]], # Pesos para RF, SVM, KNN
+    },
+     "Stacking": {
+        'final_estimator__n_estimators': [50, 100],
+        'final_estimator__max_depth': [5, 10],
     },
 }
 

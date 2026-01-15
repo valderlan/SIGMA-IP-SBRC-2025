@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 current_dir = os.getcwd()
 if current_dir not in sys.path:
@@ -25,9 +26,10 @@ from src.data_processing import (
 from src.evaluate import (
     evaluate_model_accuracy,
     evaluate_models,
+    generate_classification_reports,
     save_evaluation_results,
 )
-from src.train import train_and_evaluate_models_corrected
+from src.train import train_and_evaluate_models
 from src.visualization import (
     plot_class_distribution,
     plot_confusion_matrices,
@@ -37,6 +39,7 @@ from src.visualization import (
     plot_feature_importance,
     plot_metrics_comparison,
     plot_metrics_tables,
+    plot_roc_curves,
 )
 
 
@@ -66,6 +69,8 @@ def generate_summary_report(
     execution_times: dict,
     results_df: pd.DataFrame,
     experiment_dir: str,
+    le: LabelEncoder,
+    classification_reports: dict,
 ) -> Optional[str]:
     """
     Generate summary report with save verification.
@@ -95,10 +100,23 @@ def generate_summary_report(
         else:
             report.append("**Configuration**: WITHOUT SMOTE\n")
 
+        class_labels = le.classes_
+        report.append("## Class Mapping (LabelEncoder)\n")
+        report.append(
+            "The numerical classification used in the charts and forecasts corresponds to the following original labels.:\n"
+        )
+
+        report.append("| Numeric Code | Original Class Label |")
+        report.append("|:---------------:|:-------------------------|")
+
+        for i, label in enumerate(class_labels):
+            report.append(f"| **{i}** | **{label}** |")
+
         report.append("\n## Model Performance Summary\n")
 
         accuracy_col = None
         possible_accuracy_cols = [
+            "Balanced_Accuracy",
             "Accuracy (%)",
             "Acurácia (%)",
             "Accuracy",
@@ -110,17 +128,42 @@ def generate_summary_report(
                 accuracy_col = col
                 break
 
+            if col in metrics_df.columns and accuracy_col is None:
+                accuracy_col = col
+
         if accuracy_col and len(accuracy_df) > 0:
             try:
-                top_models = accuracy_df.nlargest(3, accuracy_col)
 
-                report.append("### Top 3 Models by Accuracy\n")
-                for idx, (model_name, row) in enumerate(top_models.iterrows(), 1):
-                    acc_value = row[accuracy_col]
-                    report.append(f"{idx}. **{model_name}**: {acc_value:.2f}%\n")
+                if accuracy_col in accuracy_df.columns:
+                    acc_series = accuracy_df[accuracy_col]
+                else:
+                    acc_series = metrics_df[accuracy_col] * 100
+
+                top_models = acc_series.nlargest(3)
+
+                report.append(
+                    "### Top 3 Models by Performance (via Balanced Accuracy or Accuracy)\n"
+                )
+                for idx, (model_name, acc_value) in enumerate(top_models.items(), 1):
+
+                    is_percent = "(%)" in accuracy_col
+                    fmt = ".2f" if is_percent else ".4f"
+
+                    if accuracy_col in ["Log_Loss", "Brier_Score"]:
+                        report.append(
+                            f"{idx}. **{model_name}**: {acc_value:{fmt}} (Lower is better)\n"
+                        )
+                    else:
+                        unit = "%" if is_percent else ""
+                        report.append(
+                            f"{idx}. **{model_name}**: {acc_value:{fmt}}{unit}\n"
+                        )
+
             except Exception as e:
                 report.append("### Top Models\n")
-                report.append("Could not generate ranking due to data format issues.\n")
+                report.append(
+                    "Could not generate ranking due to data format issues or missing column.\n"
+                )
         else:
             report.append("### Models Trained\n")
             for model_name in accuracy_df.index:
@@ -133,24 +176,36 @@ def generate_summary_report(
             report.append(f"```\n{hyperparams}\n```\n")
 
         report.append("\n## Performance Metrics\n")
-        report.append(metrics_df.to_markdown())
 
+        metrics_cols = list(metrics_df.columns)
+        if "Overfit_Gap" in metrics_cols:
+            metrics_cols.remove("Overfit_Gap")
+            metrics_cols.append("Overfit_Gap")
+
+        report.append(
+            metrics_df[metrics_cols].to_markdown(floatfmt=".4f")
+        )  
         report.append("\n## Detailed Accuracy Results\n")
-        report.append(accuracy_df.to_markdown())
+        report.append(accuracy_df.to_markdown(floatfmt=".4f"))
 
         report.append("\n## Training Execution Times\n")
         exec_df = pd.DataFrame.from_dict(
             execution_times, orient="index", columns=["Time (seconds)"]
         )
         exec_df = exec_df.sort_values("Time (seconds)", ascending=False)
-        report.append(exec_df.to_markdown())
+        report.append(exec_df.to_markdown(floatfmt=".2f"))
 
         total_time = sum(execution_times.values())
         report.append(f"\n**Total Training Time**: {total_time:.2f} seconds\n")
 
         report.append("\n## Directory Structure\n")
         report.append(f"- **Experiment**: `{experiment_dir}`\n")
-        report.append(f"- **Images**: `{os.path.join(experiment_dir, 'images')}`\n")
+        report.append(
+            f"- **Images (Plots)**: `{os.path.join(experiment_dir, 'images')}`\n"
+        )
+        report.append(
+            f"- **Report (CSVs)**: `{os.path.join(experiment_dir, 'report')}`\n"
+        )
 
         if (
             "models_s" in experiment_dir
@@ -160,31 +215,31 @@ def generate_summary_report(
             models_path = os.path.join(os.getcwd(), "data", "models_s")
         else:
             models_path = os.path.join(os.getcwd(), "data", "models")
-        report.append(f"- **Models**: `{models_path}`\n")
+        report.append(f"- **Models (Joblib/Keras)**: `{models_path}`\n")
+        report.append("\n## Metrics by Class\n") # <-- Nova seção
 
-        report.append("\n---\n")
+        for model_name, report_str in classification_reports.items():
+            report.append(f"### {model_name}\n")
+            
+            report.append("```\n")
+            report.append(report_str)
+            report.append("\n```\n")
+            report.append("\n---\n")
+            
         report.append("*Report generated automatically by ML Pipeline*\n")
 
         report_content = "\n".join(report)
 
         os.makedirs(experiment_dir, exist_ok=True)
+        report_dir = os.path.join(experiment_dir, "report")
+        os.makedirs(report_dir, exist_ok=True)
 
-        report_path = os.path.join(experiment_dir, "summary_report.md")
+        report_path = os.path.join(report_dir, "summary_report.md")
 
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(report_content)
 
-        if os.path.exists(report_path) and os.path.getsize(report_path) > 0:
-            return report_path
-        else:
-
-            fallback_path = os.path.join(
-                os.getcwd(),
-                f"summary_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-            )
-            with open(fallback_path, "w", encoding="utf-8") as f:
-                f.write(report_content)
-            return fallback_path
+        return report_path
 
     except Exception as e:
 
@@ -196,7 +251,7 @@ def generate_summary_report(
             with open(fallback_path, "w", encoding="utf-8") as f:
                 f.write("# Report Generation Failed\n\nError: " + str(e))
             return fallback_path
-        except Exception as e:
+        except:
             return None
 
 
@@ -227,9 +282,11 @@ def create_safe_experiment_directory(experiment_name=None):
 
         experiment_dir = os.path.join(os.getcwd(), "data", "experiments", dir_name)
         images_dir = os.path.join(experiment_dir, "images")
+        report_dir = os.path.join(experiment_dir, "report")
 
         os.makedirs(experiment_dir, exist_ok=True)
         os.makedirs(images_dir, exist_ok=True)
+        os.makedirs(report_dir, exist_ok=True)
 
         logger.info(f"Created fallback experiment directory: {experiment_dir}")
         return experiment_dir
@@ -249,6 +306,9 @@ def main_pipeline(use_smote=False, experiment_name=None):
     try:
         experiment_dir = create_safe_experiment_directory(experiment_name)
         images_dir = os.path.join(experiment_dir, "images")
+        report_dir = os.path.join(experiment_dir, "report")
+        os.makedirs(report_dir, exist_ok=True)
+
         if use_smote:
             models_dir = os.path.join("data", "models_s")
         else:
@@ -256,6 +316,7 @@ def main_pipeline(use_smote=False, experiment_name=None):
 
         logger.info(f"Experiment directory: {experiment_dir}")
         logger.info(f"Images directory: {images_dir}")
+        logger.info(f"Report directory: {report_dir}")
         logger.info(f"Models directory: {models_dir}")
 
     except Exception as e:
@@ -295,24 +356,20 @@ def main_pipeline(use_smote=False, experiment_name=None):
         logger.info("Starting model training...")
 
         try:
-            sig = inspect.signature(train_and_evaluate_models_corrected)
+            sig = inspect.signature(train_and_evaluate_models)
             if "use_smote" in sig.parameters:
-                results, execution_times, trained_models = (
-                    train_and_evaluate_models_corrected(
-                        X_train,
-                        X_test,
-                        y_train,
-                        y_test,
-                        models_dir,
-                        images_dir,
-                        use_smote=use_smote,
-                    )
+                results, execution_times, trained_models = train_and_evaluate_models(
+                    X_train,
+                    X_test,
+                    y_train,
+                    y_test,
+                    models_dir,
+                    images_dir,
+                    use_smote=use_smote,
                 )
             else:
-                results, execution_times, trained_models = (
-                    train_and_evaluate_models_corrected(
-                        X_train, X_test, y_train, y_test, models_dir, images_dir
-                    )
+                results, execution_times, trained_models = train_and_evaluate_models(
+                    X_train, X_test, y_train, y_test, models_dir, images_dir
                 )
             logger.info(
                 f"Model training completed. Models trained: {list(trained_models.keys())}"
@@ -342,34 +399,60 @@ def main_pipeline(use_smote=False, experiment_name=None):
 
         logger.info("Evaluating model performance...")
 
-        try:
-            metrics_df = evaluate_models(trained_models, X_test, y_test)
-            accuracy_df = evaluate_model_accuracy(trained_models, X_test, y_test, le)
-            logger.info("Model evaluation completed successfully")
-        except Exception as e:
-            logger.error(f"Evaluation error: {e}")
-            raise Exception(f"Evaluation error: {e}")
+        logger.info("Generating per-class classification reports...")
+
+        classification_reports = generate_classification_reports(
+            trained_models, X_test, y_test, le
+        )
+        logger.info("Classification reports generated successfully")
+
+        metrics_df = evaluate_models(trained_models, X_test, y_test)
+        accuracy_df = evaluate_model_accuracy(trained_models, X_test, y_test, le)
+        logger.info("Model evaluation completed successfully")
 
         logger.info("Saving evaluation results...")
         try:
             results_df = pd.DataFrame(results).T
+
             if "Best Parameters" in results_df.columns:
                 results_df["Best Parameters"] = results_df["Best Parameters"].apply(
                     lambda x: str(x)
                 )
+                train_score_col = "Train Score"
+                test_score_col = "Test Score"
             elif "Melhores Parâmetros" in results_df.columns:
                 results_df["Best Parameters"] = results_df["Melhores Parâmetros"].apply(
                     lambda x: str(x)
                 )
                 results_df.drop("Melhores Parâmetros", axis=1, inplace=True)
+                train_score_col = "Train Score"
+                test_score_col = "Test Score"
+            else:
+                train_score_col = "Train Score"
+                test_score_col = "Test Score"
+
+            if (
+                train_score_col in results_df.columns
+                and test_score_col in results_df.columns
+            ):
+
+                overfit_gap = (
+                    results_df[train_score_col] - results_df[test_score_col]
+                ).abs()
+                metrics_df["Overfit_Gap"] = overfit_gap
+                logger.info("Overfit_Gap calculated and merged into metrics_df.")
+            else:
+                logger.warning(
+                    "Could not calculate Overfit_Gap: Train/Test score columns not found."
+                )
 
             results_csv_path = os.path.join(
-                models_dir, "results_with_hyperparameters.csv"
+                report_dir, "results_with_hyperparameters.csv"
             )
             results_df.to_csv(results_csv_path)
             logger.info(f"Results saved to: {results_csv_path}")
 
-            save_evaluation_results(metrics_df, accuracy_df, models_dir)
+            save_evaluation_results(metrics_df, accuracy_df, report_dir)
             logger.info("Evaluation results saved successfully")
 
         except Exception as e:
@@ -383,20 +466,24 @@ def main_pipeline(use_smote=False, experiment_name=None):
             plot_execution_times(execution_times, images_dir)
             plot_metrics_comparison(metrics_df, images_dir)
             plot_confusion_matrices(trained_models, X_test, y_test, images_dir)
+            plot_roc_curves(trained_models, X_test, y_test, le, images_dir)
             logger.info("Result visualizations generated successfully")
         except Exception as e:
             logger.warning(f"Failed to generate some result visualizations: {e}")
             pass
 
         logger.info("Generating summary report...")
-        try:
-            report_file = generate_summary_report(
-                metrics_df, accuracy_df, execution_times, results_df, experiment_dir
-            )
-            logger.info(f"Summary report generated: {report_file}")
-        except Exception as e:
-            logger.warning(f"Failed to generate summary report: {e}")
-            report_file = None
+
+        report_file = generate_summary_report(
+            metrics_df,
+            accuracy_df,
+            execution_times,
+            results_df,
+            experiment_dir,
+            le,
+            classification_reports,
+        )
+        logger.info(f"Summary report generated: {report_file}")
 
         smote_status = (
             "WITH SMOTE (correctly applied)" if use_smote else "WITHOUT SMOTE"
@@ -404,7 +491,7 @@ def main_pipeline(use_smote=False, experiment_name=None):
         success_message = (
             f"Pipeline completed successfully! ({smote_status})\n"
             f"- Directory: {experiment_dir}\n"
-            f"- Report: {report_file}\n"
+            f"- Report (CSVs and MD): {report_dir}\n"
             f"- Models: {models_dir}\n"
             f"- Charts: {images_dir}\n"
             f"- NO DATA LEAKAGE"
@@ -416,6 +503,7 @@ def main_pipeline(use_smote=False, experiment_name=None):
             "experiment_dir": experiment_dir,
             "metrics": metrics_df,
             "accuracy": accuracy_df,
+            "classification_reports": classification_reports,
             "use_smote": use_smote,
             "report_file": report_file,
             "success": True,
@@ -453,7 +541,7 @@ def run_both_experiments():
     logger.info("Running experiment WITHOUT SMOTE...")
     try:
         results["without_smote"] = main_pipeline(
-            use_smote=False, experiment_name="experiment_WITHOUT_smote_corrected"
+            use_smote=False, experiment_name="experiment_WITHOUT_smote"
         )
         if results["without_smote"]["success"]:
             logger.info("Experiment WITHOUT SMOTE completed successfully")
@@ -468,7 +556,7 @@ def run_both_experiments():
     logger.info("Running experiment WITH SMOTE...")
     try:
         results["with_smote"] = main_pipeline(
-            use_smote=True, experiment_name="experiment_WITH_smote_corrected"
+            use_smote=True, experiment_name="experiment_WITH_smote"
         )
         if results["with_smote"]["success"]:
             logger.info("Experiment WITH SMOTE completed successfully")

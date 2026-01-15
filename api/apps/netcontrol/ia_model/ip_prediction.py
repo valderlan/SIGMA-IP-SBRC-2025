@@ -12,13 +12,13 @@ current_dir = os.getcwd()
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
-# Model directory
-# MODELS_DIR = "data/models"  # For models without SMOTE
-MODELS_DIR = "data/models_s"      # For models with SMOTE
+# Diretório dos modelos
+MODELS_DIR = "data/models_s"  # Para modelos sem SMOTE
+# MODELS_DIR = "data/models_s"      # Para modelos com SMOTE
 
-# Choose model to use
-MODEL_NAME = "Decision Tree"  
-# Available options:
+# Escolha o modelo a ser usado
+MODEL_NAME = "Voting"  
+# Opções disponíveis:
 # - "Random Forest" 
 # - "SVM"
 # - "Neural Network" 
@@ -26,32 +26,29 @@ MODEL_NAME = "Decision Tree"
 # - "Decision Tree"
 # - "KNN"
 # - "CNN"
+# --- NOVOS ENSEMBLES ---
+# - "AdaBoost"
+# - "Voting"
+# - "Stacking"
 SCALER_PARAMS_FILE = "scaler_params.pkl"
 
 
 class IPClassificationPredictor:
     """
-    Class for IP classification prediction using pre-trained models
-    Works with dataset_ip.csv structure and applies same normalization as training
+    Classe para predição de classificação de IP usando modelos pré-treinados
+    Funciona com a estrutura do dataset e aplica a mesma normalização usada no treino.
     """
 
     def __init__(
         self, models_dir=MODELS_DIR, scaler_params_file=SCALER_PARAMS_FILE, model_name=MODEL_NAME
     ):
         """
-        Initialize the IP Classification Predictor
+        Inicializa o Preditor de Classificação de IP
 
         Args:
-            models_dir (str): Directory containing trained models
-            scaler_params_file (str): Path to scaler parameters file
-            model_name (str): Name of the model to use. Options:
-                - "Random Forest" (default)
-                - "SVM" 
-                - "Neural Network"
-                - "Extra Trees"
-                - "Decision Tree"
-                - "KNN"
-                - "CNN"
+            models_dir (str): Diretório contendo modelos treinados
+            scaler_params_file (str): Caminho para o arquivo de parâmetros do scaler
+            model_name (str): Nome do modelo a ser usado.
         """
         self.models_dir = models_dir
         self.scaler_params_file = scaler_params_file
@@ -70,24 +67,29 @@ class IPClassificationPredictor:
             "Extra Trees": "Extra Trees_model.joblib",
             "Decision Tree": "Decision Tree_model.joblib",
             "KNN": "KNN_model.joblib",
-            "CNN": "CNN_model.keras"
+            "CNN": "CNN_model.keras",
+            "AdaBoost": "AdaBoost_model.joblib",
+            "Voting": "Voting_model.joblib",
+            "Stacking": "Stacking_model.joblib",
         }
 
         self.risk_mapping = {
-            "unknown": 1,
-            "none": 2,
+            "none": 1,
+            "unknown": 2,
             "low": 3,
             "medium": 4,
             "high": 5,
             "critical": 6,
         }
 
+
         self.expected_input_columns = [
-            "ip_address",
+            "ip", 
             "abuseipdb_confidence_score",
             "abuseipdb_total_reports",
             "abuseipdb_num_distinct_users",
-            "ipvoid_detection_count",
+            'apivoid_risk_score',
+            'apivoid_blacklists_detection_rate',
             "risk_recommended_pulsedive",
             "virustotal_reputation",
             "virustotal_harmless",
@@ -100,7 +102,8 @@ class IPClassificationPredictor:
             "abuseipdb_confidence_score",
             "abuseipdb_total_reports",
             "abuseipdb_num_distinct_users",
-            "ipvoid_detection_count",
+            'apivoid_risk_score',
+            'apivoid_blacklists_detection_rate',
             "risk_recommended_pulsedive",
             "virustotal_reputation",
             "virustotal_harmless",
@@ -115,7 +118,7 @@ class IPClassificationPredictor:
         self._load_model_components()
 
     def _setup_logger(self):
-        """Setup logging configuration"""
+        """Configura a configuração de logging"""
         logs_dir = os.path.join(os.getcwd(), "logs")
         os.makedirs(logs_dir, exist_ok=True)
 
@@ -141,7 +144,7 @@ class IPClassificationPredictor:
         return logger
 
     def _load_scaler_params(self):
-        """Load scaler parameters from training"""
+        """Carrega os parâmetros do scaler do treinamento"""
         if os.path.exists(self.scaler_params_file):
             try:
                 with open(self.scaler_params_file, "rb") as f:
@@ -152,26 +155,26 @@ class IPClassificationPredictor:
                 self.feature_ranges = scaler_data["feature_ranges"]
 
                 self.logger.info(
-                    f"Scaler parameters loaded from: {self.scaler_params_file}"
+                    f"Parâmetros do Scaler carregados de: {self.scaler_params_file}"
                 )
-                self.logger.info(f"Scaler columns: {self.scaler_columns}")
+                self.logger.info(f"Colunas do Scaler: {self.scaler_columns}")
             except Exception as e:
-                self.logger.error(f"Error loading scaler parameters: {e}")
+                self.logger.error(f"Erro ao carregar parâmetros do scaler: {e}")
                 self.scalers = None
         else:
             self.logger.error(
-                f"Scaler parameters file not found: {self.scaler_params_file}"
+                f"Arquivo de parâmetros do scaler não encontrado: {self.scaler_params_file}"
             )
             self.scalers = None
 
     def _load_model_components(self):
-        """Load specified model and label encoder"""
+        """Carrega o modelo especificado e o Label Encoder"""
         try:
            
             if self.model_name not in self.available_models:
                 available_names = list(self.available_models.keys())
-                self.logger.error(f"Invalid model name: {self.model_name}")
-                self.logger.error(f"Available models: {available_names}")
+                self.logger.error(f"Nome do modelo inválido: {self.model_name}")
+                self.logger.error(f"Modelos disponíveis: {available_names}")
                 return False
 
             
@@ -184,51 +187,53 @@ class IPClassificationPredictor:
                     try:
                         import tensorflow as tf
                         self.model = tf.keras.models.load_model(model_path)
-                        self.logger.info(f"CNN model loaded: {model_path}")
+                        self.logger.info(f"Modelo CNN carregado: {model_path}")
                     except ImportError:
-                        self.logger.error("TensorFlow not available. Cannot load CNN model.")
+                        self.logger.error("TensorFlow não disponível. Não é possível carregar o modelo CNN.")
                         return False
                 else:
                   
                     self.model = joblib.load(model_path)
-                    self.logger.info(f"{self.model_name} model loaded: {model_path}")
+                    self.logger.info(f"Modelo {self.model_name} carregado: {model_path}")
             else:
-                self.logger.error(f"{self.model_name} model not found: {model_path}")
+                self.logger.error(f"Modelo {self.model_name} não encontrado: {model_path}")
                 return False
 
             
             label_encoder_path = os.path.join(self.models_dir, "label_encoder.joblib")
             if os.path.exists(label_encoder_path):
                 self.label_encoder = joblib.load(label_encoder_path)
-                self.logger.info(f"Label encoder loaded: {label_encoder_path}")
+                self.logger.info(f"Label encoder carregado: {label_encoder_path}")
                 self.logger.info(
-                    f"Available classes: {list(self.label_encoder.classes_)}"
+                    f"Classes disponíveis: {list(self.label_encoder.classes_)}"
                 )
             else:
-                self.logger.error(f"Label encoder not found: {label_encoder_path}")
+                self.logger.error(f"Label encoder não encontrado: {label_encoder_path}")
                 return False
 
             return True
 
         except Exception as e:
-            self.logger.error(f"Error loading model components: {e}")
+            self.logger.error(f"Erro ao carregar componentes do modelo: {e}")
             return False
 
     def _dict_to_dataframe(self, data_dict):
         """
-        Convert dictionary to DataFrame
+        Converte dicionário para DataFrame
 
         Args:
-            data_dict: Dictionary with IP data
+            data_dict: Dicionário com dados de IP
 
         Returns:
-            pd.DataFrame: DataFrame with the data
+            pd.DataFrame: DataFrame com os dados
         """
 
+
         if isinstance(data_dict, dict) and any(
-            key in data_dict for key in ["ip_address", "abuseipdb_confidence_score"]
+            key in data_dict for key in ["ip", "abuseipdb_confidence_score"]
         ):
             return pd.DataFrame([data_dict])
+
 
         elif isinstance(data_dict, list):
             return pd.DataFrame(data_dict)
@@ -237,46 +242,46 @@ class IPClassificationPredictor:
             return pd.DataFrame(data_dict)
 
         else:
-            raise ValueError("Unsupported dictionary format")
+            raise ValueError("Formato de dicionário não suportado")
 
     def _validate_and_prepare_data(self, df):
         """
-        Validate and prepare data to match dataset_ip.csv structure
+        Valida e prepara os dados para corresponder à estrutura de treinamento
 
         Args:
-            df (pd.DataFrame): Input DataFrame
+            df (pd.DataFrame): DataFrame de entrada
 
         Returns:
-            pd.DataFrame: DataFrame with validated structure
+            pd.DataFrame: DataFrame com estrutura validada
         """
-        self.logger.info(f"Input columns: {list(df.columns)}")
+        self.logger.info(f"Colunas de entrada: {list(df.columns)}")
 
         missing_cols = set(self.expected_input_columns) - set(df.columns)
 
         if missing_cols:
-            self.logger.error(f"Missing required columns: {missing_cols}")
-            self.logger.info("Expected columns (same as dataset_ip.csv):")
+            self.logger.error(f"Colunas obrigatórias ausentes: {missing_cols}")
+            self.logger.info("Colunas esperadas (mesmas do treinamento):")
             for col in self.expected_input_columns:
                 self.logger.info(f"  - {col}")
 
             raise ValueError(
-                f"Missing required columns: {missing_cols}. Input must match dataset_ip.csv structure."
+                f"Colunas obrigatórias ausentes: {missing_cols}. A entrada deve corresponder à estrutura de treinamento."
             )
 
         df = df[self.expected_input_columns].copy()
 
-        self.logger.info("Data structure validated - matches dataset_ip.csv format")
+        self.logger.info("Estrutura de dados validada - corresponde ao formato de treinamento")
         return df
 
     def _handle_missing_values(self, df):
         """
-        Handle missing values (same strategy as training preprocessing)
+        Trata valores ausentes (mesma estratégia do pré-processamento de treinamento)
 
         Args:
-            df (pd.DataFrame): DataFrame with possible missing values
+            df (pd.DataFrame): DataFrame com possíveis valores ausentes
 
         Returns:
-            pd.DataFrame: DataFrame with missing values handled
+            pd.DataFrame: DataFrame com valores ausentes tratados
         """
 
         numerical_cols = [
@@ -284,45 +289,52 @@ class IPClassificationPredictor:
             for col in self.model_feature_columns
             if col != "risk_recommended_pulsedive"
         ]
+        
 
         for col in numerical_cols:
             if col in df.columns:
+                
 
-                if df[col].isna().all():
-                    df[col] = 0
-                    self.logger.warning(f"Column {col} is all NaN - filled with 0")
-                else:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+                
+
+                if df[col].notna().sum() > 0:
                     median_val = df[col].median()
-                    df[col] = df[col].fillna(median_val)
-                    if df[col].isna().sum() > 0:
-                        self.logger.info(
-                            f"Filled {df[col].isna().sum()} missing values in {col} with median: {median_val}"
+
+                    fill_val = median_val if pd.notna(median_val) else 0.0
+                    df[col] = df[col].fillna(fill_val)
+                    if pd.notna(median_val):
+                         self.logger.info(
+                            f"Preenchidos {df[col].isna().sum()} valores ausentes em {col} com mediana: {median_val}"
                         )
+                else:
+                    df[col] = df[col].fillna(0.0)
+                    self.logger.warning(f"Coluna {col} estava toda vazia/NaN - preenchida com 0.0")
 
         if "risk_recommended_pulsedive" in df.columns:
             df["risk_recommended_pulsedive"] = df["risk_recommended_pulsedive"].fillna(
                 "medium"
             )
             self.logger.info(
-                "Filled missing risk_recommended_pulsedive values with 'medium'"
+                "Preenchidos valores ausentes de risk_recommended_pulsedive com 'medium'"
             )
 
         return df
 
     def _encode_categorical_columns(self, df):
         """
-        Encode categorical columns (same as training preprocessing)
+        Codifica colunas categóricas (mesmo que no pré-processamento de treinamento)
 
         Args:
-            df (pd.DataFrame): DataFrame with categorical columns
+            df (pd.DataFrame): DataFrame com colunas categóricas
 
         Returns:
-            pd.DataFrame: DataFrame with encoded columns
+            pd.DataFrame: DataFrame com colunas codificadas
         """
         if "risk_recommended_pulsedive" in df.columns:
-            self.logger.info("Encoding risk_recommended_pulsedive column")
-            original_values = df["risk_recommended_pulsedive"].value_counts()
-            self.logger.info(f"Original values: {original_values.to_dict()}")
+            self.logger.info("Codificando a coluna risk_recommended_pulsedive")
+            
+            df["risk_recommended_pulsedive"] = df["risk_recommended_pulsedive"].astype(str)
 
             df["risk_recommended_pulsedive"] = df["risk_recommended_pulsedive"].map(
                 self.risk_mapping
@@ -331,140 +343,144 @@ class IPClassificationPredictor:
             unmapped_count = df["risk_recommended_pulsedive"].isna().sum()
             if unmapped_count > 0:
                 self.logger.warning(
-                    f"Found {unmapped_count} unmapped risk values - filling with 'medium' (4)"
+                    f"Encontrados {unmapped_count} valores de risco não mapeados - preenchendo com 'unknown/medium' (2 ou 4)"
                 )
+                # O mapeamento original usa 2 para 'unknown' e 4 para 'medium'. Usamos 4 como default.
                 df["risk_recommended_pulsedive"] = df[
                     "risk_recommended_pulsedive"
-                ].fillna(4)
+                ].fillna(4) 
 
             encoded_values = df["risk_recommended_pulsedive"].value_counts()
-            self.logger.info(f"Encoded values: {encoded_values.to_dict()}")
+            self.logger.info(f"Valores codificados: {encoded_values.to_dict()}")
 
         return df
 
     def _normalize_features(self, df):
         """
-        Normalize features using the same scalers from training
+        Normaliza as features usando os mesmos scalers do treinamento
 
         Args:
-            df (pd.DataFrame): DataFrame with features to normalize
+            df (pd.DataFrame): DataFrame com features para normalizar
 
         Returns:
-            pd.DataFrame: DataFrame with normalized features
+            pd.DataFrame: DataFrame com features normalizadas
         """
         if self.scalers is None:
-            raise ValueError("Scaler parameters not loaded. Cannot normalize features.")
+            raise ValueError("Parâmetros do Scaler não carregados. Não é possível normalizar as features.")
 
-        self.logger.info("Applying normalization using training scalers")
+        self.logger.info("Aplicando normalização usando scalers de treinamento")
 
         for col in self.model_feature_columns:
             if col in df.columns and col in self.scalers:
                 scaler_info = self.scalers[col]
                 scaler = scaler_info["scaler"]
 
-                values = df[col].values.reshape(-1, 1)
+                values = df[col].astype(float).values.reshape(-1, 1) 
                 df[col] = scaler.transform(values).flatten()
 
                 self.logger.info(
-                    f"Normalized {col}: range [{df[col].min():.3f}, {df[col].max():.3f}]"
+                    f"Normalizado {col}: range [{df[col].min():.3f}, {df[col].max():.3f}]"
                 )
             elif col not in self.scalers:
-                self.logger.warning(f"No scaler found for column: {col}")
+                self.logger.warning(f"Nenhum scaler encontrado para coluna: {col}")
 
-        self.logger.info("Feature normalization completed")
+        self.logger.info("Normalização de Features concluída")
         return df
 
     def preprocess_for_prediction(self, input_data):
         """
-        Preprocess data for prediction (same pipeline as training)
+        Pré-processa os dados para predição (mesmo pipeline do treinamento)
 
         Args:
-            input_data: CSV file path, dictionary or DataFrame
+            input_data: Caminho do arquivo CSV, dicionário ou DataFrame
 
         Returns:
-            pd.DataFrame: Processed DataFrame ready for prediction
+            pd.DataFrame: DataFrame processado pronto para predição
         """
-        self.logger.info("Starting preprocessing for prediction...")
+        self.logger.info("Iniciando pré-processamento para predição...")
 
         if isinstance(input_data, str):
             if not os.path.exists(input_data):
-                raise FileNotFoundError(f"CSV file not found: {input_data}")
+                raise FileNotFoundError(f"Arquivo CSV não encontrado: {input_data}")
             df = pd.read_csv(input_data)
             self.logger.info(
-                f"Dataset loaded from CSV: {df.shape[0]} rows, {df.shape[1]} columns"
+                f"Dataset carregado do CSV: {df.shape[0]} linhas, {df.shape[1]} colunas"
             )
 
             if df.empty:
-                raise ValueError("CSV file is empty")
+                raise ValueError("Arquivo CSV está vazio")
 
         elif isinstance(input_data, (dict, list)):
             df = self._dict_to_dataframe(input_data)
             self.logger.info(
-                f"Dataset created from dictionary: {df.shape[0]} rows, {df.shape[1]} columns"
+                f"Dataset criado a partir do dicionário: {df.shape[0]} linhas, {df.shape[1]} colunas"
             )
         elif isinstance(input_data, pd.DataFrame):
             df = input_data.copy()
             self.logger.info(
-                f"DataFrame received: {df.shape[0]} rows, {df.shape[1]} columns"
+                f"DataFrame recebido: {df.shape[0]} linhas, {df.shape[1]} colunas"
             )
         else:
             raise ValueError(
-                "Unsupported input type. Use CSV path, dictionary or DataFrame."
+                "Tipo de entrada não suportado. Use caminho CSV, dicionário ou DataFrame."
             )
 
         df = self._validate_and_prepare_data(df)
 
-        df = self._handle_missing_values(df)
+        #df = self._handle_missing_values(df)
 
         df = self._encode_categorical_columns(df)
 
         df = self._normalize_features(df)
 
         self.logger.info(
-            f"Preprocessing completed: {df.shape[0]} rows, {df.shape[1]} columns"
+            f"Pré-processamento concluído: {df.shape[0]} linhas, {df.shape[1]} colunas"
         )
         return df
 
     def predict_classification(self, input_data, output_file=None):
         """
-        Predict IP classification
+        Prediz a classificação do IP
 
         Args:
-            input_data: CSV file path, dictionary or DataFrame (must match dataset_ip.csv structure)
-            output_file (str, optional): Path to save results CSV
+            input_data: Caminho do arquivo CSV, dicionário ou DataFrame (deve corresponder à estrutura de treinamento)
+            output_file (str, optional): Caminho para salvar os resultados em CSV
 
         Returns:
-            dict: Dictionary with predictions for each IP
+            dict: Dicionário com previsões para cada IP
         """
-        self.logger.info("Starting IP classification prediction")
+        self.logger.info("Iniciando predição de classificação de IP")
 
         if self.model is None or self.label_encoder is None:
-            return {"error": "Model or label encoder not loaded properly"}
+            return {"error": "Modelo ou label encoder não foram carregados corretamente"}
 
         try:
 
             processed_df = self.preprocess_for_prediction(input_data)
 
             feature_columns = self.model_feature_columns
-            features = processed_df[feature_columns].values
+
+            features_df = processed_df[feature_columns]
+            
+            features_np = features_df.values
 
             self.logger.info(
-                f"Making predictions for {len(features)} IPs using {len(feature_columns)} features"
+                f"Fazendo previsões para {len(features_df)} IPs usando {len(feature_columns)} features"
             )
-            self.logger.info(f"Feature columns: {feature_columns}")
+
 
             if self.model_name == "CNN":
 
-                features_reshaped = features.reshape(features.shape[0], features.shape[1], 1)
+                features_reshaped = features_np.reshape(features_np.shape[0], features_np.shape[1], 1)
                 prediction_probs = self.model.predict(features_reshaped, verbose=0)
                 predictions = np.argmax(prediction_probs, axis=1)
                 confidences = np.max(prediction_probs, axis=1)
             else:
 
-                predictions = self.model.predict(features)
+                predictions = self.model.predict(features_df)
                 
                 if hasattr(self.model, "predict_proba"):
-                    probabilities = self.model.predict_proba(features)
+                    probabilities = self.model.predict_proba(features_df)
                     confidences = np.max(probabilities, axis=1)
                 else:
                     confidences = [None] * len(predictions)
@@ -475,8 +491,8 @@ class IPClassificationPredictor:
 
             for i in range(len(predicted_labels)):
 
-                if "ip_address" in processed_df.columns:
-                    ip_key = processed_df.iloc[i]["ip_address"]
+                if "ip" in processed_df.columns: 
+                    ip_key = processed_df.iloc[i]["ip"] 
                 else:
                     ip_key = f"ip_{i+1}"
 
@@ -488,14 +504,14 @@ class IPClassificationPredictor:
                     "model_used": self.model_name,
                 }
 
-            self.logger.info(f"Predictions completed for {len(results)} IPs")
+            self.logger.info(f"Previsões concluídas para {len(results)} IPs")
 
             prediction_counts = {}
             for result in results.values():
                 label = result["classification"]
                 prediction_counts[label] = prediction_counts.get(label, 0) + 1
 
-            self.logger.info("Prediction summary:")
+            self.logger.info("Resumo da Previsão:")
             for label, count in prediction_counts.items():
                 self.logger.info(f"  {label}: {count}")
 
@@ -509,44 +525,43 @@ class IPClassificationPredictor:
                 )
 
                 results_df.to_csv(output_file, index=False)
-                self.logger.info(f"Results saved to: {output_file}")
+                self.logger.info(f"Resultados salvos em: {output_file}")
 
             return results
 
         except Exception as e:
-            self.logger.error(f"Error during prediction: {e}")
+            self.logger.error(f"Erro durante a predição: {e}")
             return {"error": str(e)}
 
 
 if __name__ == "__main__":
     
-    # Option 1: Single IP (must have exact dataset_ip.csv structure)
-    single_ip_data = {
-        "ip_address": "192.168.1.100",
+    # Opção 1: IP Único (deve ter a estrutura exata do dataset de treinamento)
+    '''single_ip_data = {
+        "ip": "192.168.1.100",
         "abuseipdb_confidence_score": 25,
         "abuseipdb_total_reports": 3,
         "abuseipdb_num_distinct_users": 2,
-        "ipvoid_detection_count": 1,
+        "apivoid_risk_score": 60,
+        "apivoid_blacklists_detection_rate": 0.05,
         "risk_recommended_pulsedive": "medium",
         "virustotal_reputation": 0,
         "virustotal_harmless": 45,
         "virustotal_malicious": 1,
         "virustotal_undetected": 25,
         "virustotal_suspicious": 0,
-    }
+    }'''
 
-    # Option 2: CSV file (must match dataset_ip.csv structure)
-    # csv_file_path = "datasets/Total_test1.csv"
-    # output_csv_path = "datasets/prediction_results.csv"
+    # Opção 2: Arquivo CSV (deve corresponder à estrutura de treinamento)
+    csv_file_path = "consulta.csv"
+    output_csv_path = "datasets/prediction_results.csv"
 
-    # Initialize predictor with chosen model
+    # Inicializa o preditor com o modelo escolhido
     predictor = IPClassificationPredictor(MODELS_DIR, SCALER_PARAMS_FILE, MODEL_NAME)
 
-    # Make prediction
-    # For single IP:
-    results = predictor.predict_classification(single_ip_data)
+    # Faz a predição
+    # Para IP único:
+    # results = predictor.predict_classification(single_ip_data)
 
-    # For CSV file:
+    # Para arquivo CSV:
     # results = predictor.predict_classification(csv_file_path, output_csv_path)
-
-    

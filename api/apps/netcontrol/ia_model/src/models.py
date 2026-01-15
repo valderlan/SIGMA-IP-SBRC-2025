@@ -1,10 +1,15 @@
 from sklearn.decomposition import PCA
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
+from sklearn.ensemble import (
+    AdaBoostClassifier,
+    ExtraTreesClassifier,
+    RandomForestClassifier,
+    StackingClassifier,
+    VotingClassifier,
+)
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from tensorflow.keras.regularizers import l1_l2
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from tensorflow.keras.layers import (
@@ -18,6 +23,7 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l1_l2
 
 
 def create_cnn_model(input_shape):
@@ -44,7 +50,7 @@ def create_cnn_model(input_shape):
                 kernel_size=hyperparameters["kernel_size"],
                 padding="same",
                 activation="relu",
-                kernel_regularizer=l1_l2(l1=1e-5, l2=1e-4)
+                kernel_regularizer=l1_l2(l1=1e-5, l2=1e-4),
             ),
             BatchNormalization(),
             Conv1D(
@@ -55,7 +61,11 @@ def create_cnn_model(input_shape):
             ),
             BatchNormalization(),
             Flatten(),
-            Dense(hyperparameters["dense1_units"], activation="relu", kernel_regularizer=l1_l2(l1=1e-5, l2=1e-3)), 
+            Dense(
+                hyperparameters["dense1_units"],
+                activation="relu",
+                kernel_regularizer=l1_l2(l1=1e-5, l2=1e-3),
+            ),
             Dropout(hyperparameters["dropout_rate"]),
             Dense(hyperparameters["dense2_units"], activation="relu"),
             Dense(3, activation="softmax"),
@@ -69,6 +79,27 @@ def create_cnn_model(input_shape):
     )
 
     return model, hyperparameters
+
+
+def get_base_estimators(use_smote=False):
+    """Retorna um subconjunto de modelos como estimadores base para ensembles."""
+    class_weight = None if use_smote else "balanced"
+
+    estimators = [
+        ("rf", RandomForestClassifier(random_state=42, class_weight=class_weight)),
+        ("svc", SVC(probability=True, random_state=42, class_weight=class_weight)),
+        (
+            "knn",
+            Pipeline(
+                [
+                    ("scaler", StandardScaler()),
+                    ("pca", PCA(n_components=5)),
+                    ("knn", KNeighborsClassifier()),
+                ]
+            ),
+        ),
+    ]
+    return estimators
 
 
 def get_models_with_smote(input_shape=None):
@@ -86,6 +117,15 @@ def get_models_with_smote(input_shape=None):
         input_shape = (11, 1)
 
     cnn_model, cnn_params = create_cnn_model(input_shape)
+
+    estimators = get_base_estimators(use_smote=True)
+    voting_clf = VotingClassifier(estimators=estimators, voting="soft", n_jobs=-1)
+    stacking_clf = StackingClassifier(
+        estimators=estimators,
+        final_estimator=RandomForestClassifier(random_state=42),
+        cv=5,
+        n_jobs=-1,
+    )
 
     return {
         "Random Forest": RandomForestClassifier(random_state=42),
@@ -114,6 +154,9 @@ def get_models_with_smote(input_shape=None):
             ]
         ),
         "CNN": (cnn_model, cnn_params),
+        "AdaBoost": AdaBoostClassifier(random_state=42),
+        "Voting": voting_clf,
+        "Stacking": stacking_clf,
     }
 
 
@@ -132,6 +175,17 @@ def get_models_without_smote(input_shape=None):
         input_shape = (11, 1)
 
     cnn_model, cnn_params = create_cnn_model(input_shape)
+
+    estimators = get_base_estimators(use_smote=False)
+    voting_clf = VotingClassifier(estimators=estimators, voting="soft", n_jobs=-1)
+    stacking_clf = StackingClassifier(
+        estimators=estimators,
+        final_estimator=RandomForestClassifier(
+            class_weight="balanced", random_state=42
+        ),
+        cv=5,
+        n_jobs=-1,
+    )
 
     return {
         "Random Forest": RandomForestClassifier(
@@ -168,6 +222,9 @@ def get_models_without_smote(input_shape=None):
             ]
         ),
         "CNN": (cnn_model, cnn_params),
+        "AdaBoost": AdaBoostClassifier(random_state=42),
+        "Voting": voting_clf,
+        "Stacking": stacking_clf,
     }
 
 

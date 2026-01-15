@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import traceback
 from datetime import datetime
 
 import pandas as pd
@@ -38,66 +39,6 @@ def check_and_create_directories():
     directories = ["datasets", "logs", "src"]
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
-
-
-def remove_duplicates(input_file, output_file=None):
-    """
-    Remove duplicate records from the dataset
-
-    Args:
-        input_file (str): Path to input CSV file
-        output_file (str): Path to output CSV file (optional)
-
-    Returns:
-        str: Path to the cleaned dataset
-    """
-    logger = logging.getLogger(__name__)
-    logger.info("=" * 60)
-    logger.info("DUPLICATE REMOVAL PROCESS")
-    logger.info("=" * 60)
-
-    if not os.path.exists(input_file):
-        raise FileNotFoundError(f"Input file not found: {input_file}")
-
-    logger.info(f"Loading dataset: {input_file}")
-    df = pd.read_csv(input_file)
-    original_len = len(df)
-    logger.info(f"Original dataset: {original_len} rows, {df.shape[1]} columns")
-
-    null_before = df.isnull().sum().sum()
-    if null_before > 0:
-        logger.warning(f"Found {null_before} null values")
-        df_clean = df.dropna()
-        logger.info(f"After removing nulls: {len(df_clean)} rows")
-    else:
-        df_clean = df.copy()
-        logger.info("No null values found")
-
-    duplicates_before = df_clean.duplicated().sum()
-    if duplicates_before > 0:
-        logger.warning(f"Found {duplicates_before} duplicate rows")
-        df_clean = df_clean.drop_duplicates()
-        logger.info(f"After removing duplicates: {len(df_clean)} rows")
-    else:
-        logger.info("No duplicates found")
-
-    final_len = len(df_clean)
-    total_removed = original_len - final_len
-
-    logger.info("Cleaning summary:")
-    logger.info(f"  Original dataset: {original_len} rows")
-    logger.info(f"  Cleaned dataset: {final_len} rows")
-    logger.info(
-        f"  Total removed: {total_removed} rows ({total_removed/original_len*100:.1f}%)"
-    )
-
-    if output_file is None:
-        output_file = input_file
-
-    df_clean.to_csv(output_file, index=False)
-    logger.info(f"Cleaned dataset saved to: {output_file}")
-
-    return output_file
 
 
 def classify_dataset(input_file, output_file):
@@ -247,8 +188,7 @@ def run_complete_preprocessing_pipeline():
     check_and_create_directories()
 
     datasets_dir = "datasets"
-    original_file = os.path.join(datasets_dir, "dataset_ip.csv")
-    cleaned_file = os.path.join(datasets_dir, "dataset_ip.csv")
+    original_file = os.path.join(datasets_dir, "dataset_ip12.csv")
     classified_file = os.path.join(datasets_dir, "dataset_ip_classified.csv")
     normalized_file = os.path.join(datasets_dir, "dataset_ip_norm.csv")
 
@@ -268,19 +208,8 @@ def run_complete_preprocessing_pipeline():
             "columns": len(df_original.columns),
         }
 
-        logger.info("Step 2: Removing duplicates...")
-        cleaned_path = remove_duplicates(original_file, cleaned_file)
-        results["files_created"].append(cleaned_path)
-
-        df_cleaned = pd.read_csv(cleaned_path)
-        results["statistics"]["cleaned"] = {
-            "rows": len(df_cleaned),
-            "columns": len(df_cleaned.columns),
-            "removed_rows": results["statistics"]["original"]["rows"] - len(df_cleaned),
-        }
-
-        logger.info("Step 3: Classifying dataset...")
-        classified_path = classify_dataset(cleaned_path, classified_file)
+        logger.info("Step 2: Classifying dataset...")
+        classified_path = classify_dataset(original_file, classified_file)
         results["files_created"].append(classified_path)
 
         df_classified = pd.read_csv(classified_path)
@@ -292,7 +221,7 @@ def run_complete_preprocessing_pipeline():
             .to_dict(),
         }
 
-        logger.info("Step 4: Normalizing dataset...")
+        logger.info("Step 3: Normalizing dataset...")
         normalized_path = normalize_dataset(classified_path, normalized_file)
         results["files_created"].append(normalized_path)
 
@@ -302,15 +231,16 @@ def run_complete_preprocessing_pipeline():
             "columns": len(df_normalized.columns),
         }
 
-        logger.info("Step 5: Final validation...")
+        logger.info("Step 4: Final validation...")
         expected_ml_columns = [
-            "ip_address",
+            "ip",
             "classification",
             "risk_recommended_pulsedive",
             "abuseipdb_confidence_score",
             "abuseipdb_total_reports",
             "abuseipdb_num_distinct_users",
-            "ipvoid_detection_count",
+            "apivoid_risk_score",
+            "apivoid_blacklists_detection_rate",
             "virustotal_reputation",
             "virustotal_harmless",
             "virustotal_malicious",
@@ -330,9 +260,7 @@ def run_complete_preprocessing_pipeline():
         logger.info(
             f"  Original dataset: {results['statistics']['original']['rows']} rows"
         )
-        logger.info(
-            f"  After cleaning: {results['statistics']['cleaned']['rows']} rows (removed {results['statistics']['cleaned']['removed_rows']})"
-        )
+
         logger.info(
             f"  After classification: {results['statistics']['classified']['rows']} rows"
         )
@@ -357,8 +285,6 @@ def run_complete_preprocessing_pipeline():
         results["errors"].append(str(e))
         results["success"] = False
 
-        import traceback
-
         logger.error(f"Traceback: {traceback.format_exc()}")
 
     logger.info("=" * 80)
@@ -369,7 +295,4 @@ def run_complete_preprocessing_pipeline():
 
 
 if __name__ == "__main__":
-    """
-    Main execution of the data preprocessing pipeline
-    """
     results = run_complete_preprocessing_pipeline()

@@ -11,8 +11,9 @@ import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import auc, confusion_matrix, roc_curve
 from sklearn.model_selection import learning_curve
+from sklearn.preprocessing import label_binarize
 
 plt.rcParams["axes.prop_cycle"] = plt.cycler(
     color=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
@@ -51,7 +52,12 @@ def plot_feature_importance(model, model_name, feature_names, images_dir):
     plt.style.use("ggplot")
     plt.figure(figsize=(12, 8))
     sns.barplot(
-        x="Importance", y="Feature", data=feature_importance_df, palette="viridis"
+        x="Importance",
+        y="Feature",
+        data=feature_importance_df,
+        palette="viridis",
+        hue="Feature",
+        legend=False,
     )
 
     plt.title(f"Feature Importance - {model_name} Model", fontsize=16)
@@ -168,27 +174,27 @@ def plot_metrics_comparison(metrics_df, images_dir):
         images_dir: Directory to save the plots
     """
 
-    if "Harmonic_Mean" in metrics_df.columns:
-        metrics_df = metrics_df.drop(columns=["Harmonic_Mean"])
-    elif "Média Harmônica" in metrics_df.columns:
-        metrics_df = metrics_df.drop(columns=["Média Harmônica"])
+    cols_to_drop = [
+        col for col in metrics_df.columns if "Mean" in col or "Média" in col
+    ]
+    metrics_df_filtered = metrics_df.drop(columns=cols_to_drop, errors="ignore")
 
     colors = [
         "blue",
         "orange",
         "darkgreen",
         "dimgray",
+        "red",
+        "purple",
+        "brown",
+        "pink",
+        "olive",
+        "cyan",
+        "gold",      
+        "teal"
     ]
 
-    model_labels = [
-        "Random Forest",
-        "SVM",
-        "Neural Network",
-        "Extra Trees",
-        "Decision Tree",
-        "KNN",
-        "CNN",
-    ]
+    model_labels = list(metrics_df.index)
 
     plt.rc("font", size=18)
     plt.rc("axes", titlesize=12)
@@ -198,11 +204,13 @@ def plot_metrics_comparison(metrics_df, images_dir):
     plt.rc("legend", fontsize=8)
     plt.figure(figsize=(20, 16))
 
-    metrics_df.plot(kind="bar", width=0.8, color=colors)
+    metrics_df_filtered.plot(
+        kind="bar", width=0.8, color=colors[: len(metrics_df_filtered.columns)]
+    )
     plt.xlabel("Models", fontsize=14)
     plt.ylabel("Value", fontsize=14)
     plt.xticks(
-        ticks=range(len(metrics_df.index)),
+        ticks=range(len(metrics_df_filtered.index)),
         labels=model_labels,
         rotation=45,
         fontsize=12,
@@ -215,14 +223,15 @@ def plot_metrics_comparison(metrics_df, images_dir):
         transparent=True,
     )
 
-    # Create individual metric plots
-    for metric in metrics_df.columns:
+    for metric in metrics_df_filtered.columns:
         plt.figure(figsize=(10, 6))
-        sns.barplot(x=metrics_df.index, y=metrics_df[metric], color="#0D47A1")
+        sns.barplot(
+            x=metrics_df_filtered.index, y=metrics_df_filtered[metric], color="#0D47A1"
+        )
         plt.xlabel("Models", fontsize=16)
         plt.ylabel(metric, fontsize=16)
         plt.xticks(
-            ticks=range(len(metrics_df.index)),
+            ticks=range(len(metrics_df_filtered.index)),
             labels=model_labels,
             rotation=45,
             fontsize=12,
@@ -265,14 +274,18 @@ def plot_confusion_matrices(trained_models, X_test, y_test, images_dir):
             fmt="d",
             cmap="Blues",
             ax=ax,
-            annot_kws={"size": 18},
+            annot_kws={"size": 24},
             cbar_kws={"label": "Scale", "shrink": 1.0},
         )
-        ax.set_ylabel("Actual", fontsize=18)
-        ax.set_xlabel("Predicted", fontsize=18)
+        ax.set_ylabel("Actual", fontsize=26)
+        ax.set_xlabel("Predicted", fontsize=26)
 
-        ax.set_xticklabels(ax.get_xticklabels(), fontsize=16)
-        ax.set_yticklabels(ax.get_yticklabels(), fontsize=16)
+        ax.set_xticklabels(ax.get_xticklabels(), fontsize=22)
+        ax.set_yticklabels(ax.get_yticklabels(), fontsize=22)
+
+        cbar = ax.collections[0].colorbar
+        cbar.ax.tick_params(labelsize=16)
+        cbar.set_label("Scale", size=20)
 
         file_name = f"confusion_matrix_{name.lower().replace(' ', '_')}.png"
         plt.tight_layout(pad=0.5)
@@ -390,6 +403,70 @@ def plot_learning_curves_cnn(history, model_name, images_dir):
     )
 
 
+@create_and_save_plot
+def plot_roc_curves(trained_models, X_test, y_test, le, images_dir):
+    """
+    Plot One-vs-Rest ROC curves for all trained models (multi-class).
+
+    Args:
+        trained_models: Dictionary with model names and trained models
+        X_test: Test features
+        y_test: Test labels (integer-encoded)
+        le: LabelEncoder used to transform classes
+        images_dir: Directory to save the plots
+    """
+    class_labels = le.classes_
+    n_classes = len(class_labels)
+    y_test_binarized = label_binarize(y_test, classes=range(n_classes))
+
+    for name, model in trained_models.items():
+        try:
+
+            if name == "CNN":
+                X_test_reshaped = X_test.values.reshape(
+                    X_test.shape[0], X_test.shape[1], 1
+                )
+                y_proba = model.predict(X_test_reshaped)
+            elif hasattr(model, "predict_proba"):
+                y_proba = model.predict_proba(X_test)
+            else:
+                print(
+                    f"Skipping ROC plot for {name}: model does not have 'predict_proba'."
+                )
+                continue
+
+            plt.figure(figsize=(8, 6))
+            lw = 2
+
+            for i in range(n_classes):
+                fpr, tpr, _ = roc_curve(y_test_binarized[:, i], y_proba[:, i])
+                roc_auc = auc(fpr, tpr)
+
+                plt.plot(
+                    fpr,
+                    tpr,
+                    lw=lw,
+                    label=f"ROC curve of class {class_labels[i]} (AUC = {roc_auc:.2f})",
+                )
+
+            plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel("False Positive Rate", fontsize=14)
+            plt.ylabel("True Positive Rate", fontsize=14)
+            plt.title(f"One-vs-Rest ROC Curves - {name}", fontsize=16)
+            plt.legend(loc="lower right", fontsize=10)
+
+            file_name = f"roc_curve_{name.lower().replace(' ', '_')}.png"
+            plt.tight_layout(pad=0.5)
+            plt.savefig(os.path.join(images_dir, file_name))
+            plt.close()
+
+        except Exception as e:
+            print(f"Error generating ROC plot for {name}: {e}")
+
+
+@create_and_save_plot
 def plot_metrics_tables(results, metrics_df, images_dir):
     """
     Generate and save tables with model results and metrics.
@@ -436,44 +513,66 @@ def plot_metrics_tables(results, metrics_df, images_dir):
     plt.figure(figsize=(15, len(metrics_df) * 0.5 + 1))
     plt.axis("off")
 
-    if "Accuracy" in metrics_df.columns:
-        headers = ["", "Accuracy", "F1-Score", "Precision", "Recall", "Harmonic_Mean"]
-        accuracy_col = "Accuracy"
-        precision_col = "Precision"
-        recall_col = "Recall"
-        harmonic_col = "Harmonic_Mean"
-    else:
-        headers = ["", "Accuracy", "F1-Score", "Precision", "Recall", "Harmonic Mean"]
-        accuracy_col = "Acurácia"
-        precision_col = "Precisão"
-        recall_col = "Recall"
-        harmonic_col = "Média Harmônica"
+    headers = [
+        "",
+        "Accuracy",
+        "Balanced_Accuracy",
+        "F1-Score",
+        "F1-Macro",
+        "Precision",
+        "Recall",
+        "Cohen_Kappa",
+        "ROC_AUC",
+        "Log_Loss",
+        "MCC",
+        "Brier_Score",
+        "Overfit_Gap",
+    ]
+
+    col_map = {
+        "Accuracy": ["Accuracy", "Acurácia"],
+        "Balanced_Accuracy": ["Balanced_Accuracy", "Acurácia Balanceada"],
+        "F1-Score": ["F1-Score"],
+        "F1-Macro": ["F1-Macro"],
+        "Precision": ["Precision", "Precisão"],
+        "Recall": ["Recall"],
+        "Cohen_Kappa": ["Cohen_Kappa", "Kappa de Cohen"],
+        "ROC_AUC": ["ROC_AUC"],
+        "Log_Loss": ["Log_Loss"],
+        "MCC": ["MCC"],
+        "Brier_Score": ["Brier_Score"],
+        "Overfit_Gap": ["Overfit_Gap"],
+    }
+
+    def get_col_name(df, possible_names):
+        for name in possible_names:
+            if name in df.columns:
+                return name
+        return None
 
     cell_data = []
 
     for model_name, row in metrics_df.iterrows():
-        cell_data.append(
-            [
-                model_name,
-                f"{row[accuracy_col]:.4f}",
-                f"{row['F1-Score']:.4f}",
-                f"{row[precision_col]:.4f}",
-                f"{row[recall_col]:.4f}",
-                f"{row[harmonic_col]:.4f}" if harmonic_col in row else "N/A",
-            ]
-        )
+        cell_row = [model_name]
+        for display_name in headers[1:]:
+            col_name = get_col_name(metrics_df, col_map.get(display_name, []))
+            if col_name and pd.notna(row.get(col_name)):
+                cell_row.append(f"{row[col_name]:.4f}")
+            else:
+                cell_row.append("N/A")
+        cell_data.append(cell_row)
 
     table = plt.table(
         cellText=cell_data,
         colLabels=headers,
         cellLoc="center",
         loc="center",
-        colWidths=[0.2, 0.16, 0.16, 0.16, 0.16, 0.16],
+        colWidths=[0.1] + [0.070] * 12,
     )
 
     table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1.2, 1.5)
+    table.set_fontsize(8)
+    table.scale(1.5, 1.5)
 
     plt.title("Metrics Table:", pad=20)
     plt.savefig(

@@ -58,7 +58,7 @@ def setup_training_logger():
     return logger
 
 
-def train_and_evaluate_models_corrected(
+def train_and_evaluate_models(
     X_train, X_test, y_train, y_test, models_dir, images_dir, use_smote=False
 ):
     """
@@ -380,9 +380,9 @@ def train_and_evaluate_models_with_balancing(
         "Using deprecated function train_and_evaluate_models_with_balancing()"
     )
     logger.warning(
-        "Please use train_and_evaluate_models_corrected() with use_smote parameter"
+        "Please use train_and_evaluate_models() with use_smote parameter"
     )
 
-    return train_and_evaluate_models_corrected(
+    return train_and_evaluate_models(
         X_train, X_test, y_train, y_test, models_dir, images_dir, use_smote=False
     )
