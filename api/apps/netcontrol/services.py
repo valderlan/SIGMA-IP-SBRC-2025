@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 from django.db import IntegrityError
@@ -13,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from apps.netcontrol.ia_model.ip_prediction import IPClassificationPredictor
 from utils.convert_datetime import convert_unix_to_datetime
 from utils.pulsedive_utils import apply_riskfactors_to_pending_record
+from utils.time import timed_call, write_timing_csv
 
 
 load_dotenv()
@@ -91,15 +93,42 @@ def insert_new_blacklist_entries(dados):
 
 
 def fetch_and_update_ip_reputation_data(pending_record):
+    timings = {}
+    start_total = time.perf_counter()
+    
     logger = logging.getLogger(__name__)
 
     with ThreadPoolExecutor() as executor:
         # Faz as requisições para as APIs paralelamente
         futures = {
-            "abuse": executor.submit(SearchAbuse.get_abuseipdb_report, pending_record),
-            "virustotal": executor.submit(SearchVirusTotal.get_virustotal_report, pending_record),
-            "apivoid": executor.submit(SearchIPVoid.get_ipvoid_report, pending_record.ip_address),
-            "pulsedive": executor.submit(SearchPulsedive.get_pulsedive_report, pending_record),
+            "abuse": executor.submit(
+                timed_call, 
+                "abuse", 
+                SearchAbuse.get_abuseipdb_report, 
+                pending_record.ip_address, 
+                timings=timings
+            ),
+            "virustotal": executor.submit(
+                timed_call, 
+                "virustotal", 
+                SearchVirusTotal.get_virustotal_report, 
+                pending_record.ip_address, 
+                timings=timings
+            ),
+            "apivoid": executor.submit(
+                timed_call, 
+                "apivoid", 
+                SearchIPVoid.get_ipvoid_report, 
+                pending_record.ip_address, 
+                timings=timings
+            ),
+            "pulsedive": executor.submit(
+                timed_call, 
+                "pulsedive", 
+                SearchPulsedive.get_pulsedive_report, 
+                pending_record.ip_address, 
+                timings=timings
+            ),
         }
 
         responses = {}
@@ -109,6 +138,12 @@ def fetch_and_update_ip_reputation_data(pending_record):
             except Exception as e:
                 logger.error(f"Erro ao buscar na API {key}: {e}")
                 responses[key] = None
+
+    timings["total"] = round((time.perf_counter() - start_total) * 1000, 3)
+
+    logger.info(f"TIMINGS CAPTURADOS: {timings}")
+
+    write_timing_csv(pending_record.ip_address, timings)
 
     # Processar as respostas e salvar no objeto
     if responses.get("abuse"):
