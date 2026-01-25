@@ -17,8 +17,9 @@ from apps.netcontrol.filters import (
     AnalysisFilter,
     SuspectFilter,
 )
-from apps.netcontrol.services import IpClassificationService
+from apps.netcontrol.services.ip_classification import IpClassificationService
 from drf_spectacular.utils import extend_schema_view, extend_schema
+from utils.time import write_timing_csv
 import time
 import logging
 
@@ -158,30 +159,35 @@ class AnalysisViewSet(viewsets.ModelViewSet):
     lookup_field = "ip_address"
 
     def create(self, request, *args, **kwargs):
-        # Começa temporizador
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         super().create(request, *args, **kwargs)
 
-        ip_address = request.data.get("ip_address")  # obtém o IP enviado
+        ip_address = request.data.get("ip_address")
         logger.info(f"\nIP recebido: {ip_address}")
 
-        # Chama o serviço de reputação
         data = IpClassificationService.filter_and_classify_ip(ip_address)
+
+        total_api = (time.perf_counter() - start_time) * 1000
+
+        timings = data.pop("_timings", {})
+        timings["total_api"] = round(total_api, 3)
+
+        write_timing_csv(ip_address, timings)
 
         if not data or "verdict" not in data:
             logger.error("Erro: Resposta inválida ou sem veredito")
-            return Response({"detail": "Erro ao processar reputação do IP"}, status=500)
+            return Response(
+                {"detail": "Erro ao processar reputação do IP"},
+                status=500,
+            )
 
         logger.info(f"Veredito retornado: {data['verdict']}")
 
-        # Calcula o tempo de execução. Espera o resultado da requisição p/ contabilizar.
-        execution_time = (time.time() - start_time) * 1000
         logger.info(
-            f"Tempo de tratar a requisição na API: {execution_time:.3f} milisegundos"
+            f"Tempo total da requisição HTTP: {total_api:.3f} ms"
         )
 
-        # Retorna a reputação e o status
         return Response(data, status=201)
 
 
