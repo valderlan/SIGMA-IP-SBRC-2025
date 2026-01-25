@@ -15,8 +15,12 @@ from whitelist_rules import apply_whitelist_rules
 from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+COLLECT_DIR = os.path.join(BASE_DIR, "collect_outputs")
 
-CSV_PATH = os.path.join(BASE_DIR, "collect_outputs", "collected_data.csv")
+# cria o diretório caso não exista
+os.makedirs(COLLECT_DIR, exist_ok=True)
+
+CSV_PATH = os.path.join(COLLECT_DIR, "collected_data.csv")
 
 csv_file = open(CSV_PATH, mode="a", newline="")
 csv_writer = csv.writer(csv_file)
@@ -216,7 +220,7 @@ def check_ip_reputation_and_insert(
         csv_file.flush()
 
         # Aplicar regras baseadas no veredito
-        if verdict in ["blacklist", "none", "exists_in_api_blacklist"]:
+        if verdict in ["denylist", "none", "exists_in_api_blacklist"]:
             add_to_blacklist(ip_address)
             apply_firewall_rules(verdict, ip_address)
 
@@ -224,7 +228,7 @@ def check_ip_reputation_and_insert(
             add_to_suspect(ip_address)
             apply_firewall_rules(verdict, ip_address)
 
-        elif verdict in ["whitelist", "exists_in_api_whitelist"]:
+        elif verdict in ["allowlist", "exists_in_api_whitelist"]:
             add_to_whitelist(ip_address)
             apply_firewall_rules(verdict, ip_address)
 

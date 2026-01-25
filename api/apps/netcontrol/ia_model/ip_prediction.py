@@ -561,7 +561,7 @@ if __name__ == "__main__":
 
     # Faz a predição
     # Para IP único:
-    # results = predictor.predict_classification(single_ip_data)
+    #results = predictor.predict_classification(single_ip_data)
 
     # Para arquivo CSV:
     # results = predictor.predict_classification(csv_file_path, output_csv_path)
