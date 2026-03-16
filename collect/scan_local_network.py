@@ -1,0 +1,104 @@
+import logging
+import os
+import re
+import subprocess
+
+import psycopg2
+import requests
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
+load_dotenv(dotenv_path)
+
+token = os.environ.get("token")
+
+db_host = os.environ.get("POSTGRES_HOST")
+db_name = os.environ.get("POSTGRES_DB_LOCAL")
+db_user = os.environ.get("POSTGRES_USER")
+db_password = os.environ.get("POSTGRES_PASSWORD")
+db_port = os.environ.get("POSTGRES_PORT")
+
+
+# Função para logging
+def setup_logging():
+    """
+    Configura o logging para a aplicação
+    """
+
+    # Configuração básica do logging (apenas para terminal)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] [%(levelname)s] - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.StreamHandler()],
+    )
+    return logging.getLogger(__name__)
+
+
+def scan_local_network(network):
+    # Executa o comando nmap e captura a saída
+    result = subprocess.run(["nmap", "-sn", network], capture_output=True, text=True)
+
+    url = "http://localhost:8001/api/whitelist/"
+    headers = {"Authorization": f"Token {token}", "Content-Type": "application/json"}
+
+    # Verifica se o comando foi bem-sucedido
+    if result.returncode == 0:
+        active_hosts = []
+        for line in result.stdout.splitlines():
+            if "Nmap scan report for" in line:
+                # Extrai o IP, removendo parênteses e outros caracteres indesejados
+                match = re.search(r"(\d+\.\d+\.\d+\.\d+)", line)
+                if match:
+                    ip = match.group(0)
+                    logger.info(f"IP scanneado: {ip}")
+                    active_hosts.append(ip)
+
+                    params = {"ip_address": ip}
+                    response = requests.post(
+                        url=url, json=params, headers=headers
+                    )
+
+                    if response.status_code == 201:
+                        logger.info(
+                            f"IP {ip} foi inserido na whitelist da API com sucesso"
+                        )
+                    else:
+                        logger.error(
+                            f"Houve um erro ao inserir o IP {ip} na whitelist da API: {response.status_code}"
+                        )
+
+        # Insere os IPs ativos na whitelist do banco local de uma vez
+        conn = psycopg2.connect(
+            host=db_host,
+            dbname=db_name,
+            user=db_user,
+            password=db_password,
+            port=db_port,
+        )
+        cursor = conn.cursor()
+
+        try:
+            query = "INSERT INTO wl_address_local (ip_address) VALUES (%s)"
+            cursor.executemany(query, [(ip,) for ip in active_hosts])
+
+            conn.commit()
+            logger.info(
+                f"{len(active_hosts)} hosts ativos inseridos na tabela wl_address_local."
+            )
+
+        except (Exception, psycopg2.DatabaseError) as error:
+            logger.error(
+                "Erro ao inserir IPs da rede na tabela wl_address_local: ", error
+            )
+
+        cursor.close()
+        conn.close()
+    else:
+        logger.error("Erro ao executar o nmap:", result.stderr)
+
+
+if __name__ == "__main__":
+    logger = setup_logging()
+    network_range = input("Enter the network range (e.g., 192.168.0.0/24): ")
+    scan_local_network(network_range)
