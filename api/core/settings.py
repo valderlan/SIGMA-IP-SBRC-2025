@@ -23,6 +23,9 @@ load_dotenv(DOTENV_PATH)
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+API_MAJOR = "v1"
+API_VERSION = "1.0"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -31,28 +34,36 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = json.loads(os.getenv("ALLOWED_HOSTS", "[]"))
 
 
 # Application definition
 
-INSTALLED_APPS = [
+DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+]
+
+THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "django_filters",
-    "apps.netcontrol",
-    "apps.user_app",
     "drf_spectacular",
     "django_crontab",
 ]
+
+LOCAL_APPS = [
+    "apps.netcontrol",
+    "apps.user_app",
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -159,7 +170,7 @@ REST_FRAMEWORK = {
 
 # SWAGGER
 SPECTACULAR_SETTINGS = {
-    "TITLE": "NetControl API",
+    "TITLE": "SIGMA-IP API",
     "DESCRIPTION": "API do firewall",
     "VERSION": "1.0.0",
     "SWAGGER_UI_SETTINGS": {
@@ -172,14 +183,24 @@ SPECTACULAR_SETTINGS = {
 CRONJOBS = [
     (
         "0 12 1 * *",
-        "netcontrol.cron.verificar_ips_antigos_wl",
+        "netcontrol.cron.reprocess_old_whitelist_ips",
     ),  # Vai executar no dia 1 de cada mês ao meio-dia
     (
         "0 12 */7 * *",
-        "netcontrol.cron.verificar_ips_antigos_blacklist",
+        "netcontrol.cron.reprocess_old_blacklist_ips",
     ),  # Vai executar a cada 7 dias ao meio-dia
+    (
+        "0 12 */3 * *",  # a cada 3 dias
+        "netcontrol.cron.reprocess_old_suspect_ips",
+    ),
     (
         "0 12 */3 * *",
         "netcontrol.cron.update_blacklist",
     ),  # Vai executar a cada 3 dias ao meio-dia
 ]
+
+# Chaves de APIs externas
+API_KEY_ABUSE = json.loads(os.getenv("API_KEY_ABUSE", "[]"))
+API_KEY_VIRUSTOTAL = json.loads(os.getenv("API_KEY_VIRUSTOTAL", "[]"))
+API_KEY_APIVOID = json.loads(os.getenv("API_KEY_APIVOID", "[]"))
+API_KEY_PULSEDIVE = json.loads(os.getenv("API_KEY_PULSEDIVE", "[]"))

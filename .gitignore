@@ -3,8 +3,10 @@ geoipupdate_6.1.0_linux_amd64.deb
 .env
 .env/
 *.csv
+*.log
 api_outputs/
 clear_tables.py
+.env.docker
 
 # Ignorar arquivos __pycache__ e arquivos .pyc
 /__pycache__/
@@ -25,12 +27,10 @@ __pycache__/
 *.bak
 *.swp
 
-# Ignorar o diretório de dados do PostgreSQL
+# Ignorar arquivos do Docker
 docker/grafana/
 docker/postgres/
-
-# Ignorar o CSV gerado (cada um tem o seu)
-*.csv
+docker/redis-data/
 
 # IA
 .env-sigma
@@ -48,4 +48,22 @@ data/
 datasets/
 outputs/
 weights/
-.env.docker
+.env-sigma
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.venv
+*.png
+.python-version
+outputs/
+.vscode/
+*.png
+*_norm.csv
+*_ips.csv
+*_results.csv
+*_test1.csv
+*_hyperparameters.csv
+*.joblib
+*.keras
+summary_report.md

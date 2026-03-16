@@ -23,6 +23,11 @@ def apply_whitelist_rules(ip):
         run_iptables_command(f'sudo iptables -I {chain} -s {ip} -j WHITELIST')
     print(f"Regras de WHITELIST aplicadas para o IP {ip} em FORWARD e INPUT.")
 
+def remove_ip_from_iptables_whitelist(ip):
+    run_iptables_command(f'sudo iptables -D INPUT -s {ip} -j WHITELIST')
+    run_iptables_command(f'sudo iptables -D FORWARD -s {ip} -j WHITELIST')
+    print(f'O IP {ip} foi deletado da chain WHITELIST do iptables')
+
 def configurar_chain_whitelist():
     # Criar ou limpar as chains necessárias
     create_or_flush_chain()
